@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}卡密充值 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "manage/_sidebar.html" %}{% endblock %}
+{% block heading %}卡密充值{% endblock %}
+
+{% block content %}
+<div class="grid cols-3 mb-2">
+  <div class="stat"><div class="label">未使用</div><div class="value">{{ summary.unused }}</div><div class="hint">张可用卡密</div></div>
+  <div class="stat"><div class="label">已使用</div><div class="value">{{ summary.used }}</div><div class="hint">张已被兑换</div></div>
+  <div class="stat"><div class="label">已兑换积分</div><div class="value">{{ summary.points_used }}</div><div class="hint">通过卡密发放</div></div>
+</div>
+
+<div class="card">
+  <div class="head"><h2>生成卡密</h2></div>
+  <div class="body">
+    <form method="post" action="/admin/cards/generate" class="row" style="align-items:flex-end">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="field" style="margin:0">
+        <label>数量</label>
+        <input type="number" name="count" value="10" min="1" max="500" required>
+      </div>
+      <div class="field" style="margin:0">
+        <label>每张积分</label>
+        <input type="number" name="points" value="100" min="1" required>
+      </div>
+      <div class="field" style="margin:0">
+        <label>卡密前缀</label>
+        <input type="text" name="prefix" value="TB" maxlength="16">
+      </div>
+      <div class="field" style="margin:0">
+        <label>有效期（天）</label>
+        <input type="number" name="expires_days" value="0" min="0" max="3650">
+        <div class="help">0 = 永不过期</div>
+      </div>
+      <div class="field" style="margin:0">
+        <label>备注</label>
+        <input type="text" name="note" maxlength="200" placeholder="可选">
+      </div>
+      <div style="flex:0 0 auto">
+        <button class="btn primary" type="submit">生成</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if batches %}
+<div class="card">
+  <div class="head"><h2>批次</h2></div>
+  <div class="body flush">
+    <table>
+      <thead>
+        <tr><th>批次</th><th class="num">总数</th><th class="num">已用</th><th class="num">总积分</th><th class="hide-sm">创建时间</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for b in batches %}
+        <tr>
+          <td class="mono small">{{ b.batch or '（无批次）' }}</td>
+          <td class="num">{{ b.total }}</td>
+          <td class="num">{{ b.used or 0 }}</td>
+          <td class="num">{{ b.points or 0 }}</td>
+          <td class="hide-sm muted small">{{ b.created_at | ts }}</td>
+          <td class="nowrap">
+            <a class="btn sm" href="/admin/cards?batch={{ b.batch }}">查看</a>
+            <a class="btn sm" href="/admin/cards/export?batch={{ b.batch }}">导出全部</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="head">
+    <h2>{% if batch %}批次 {{ batch }}{% else %}全部卡密{% endif %}（{{ total }}）</h2>
+    <div class="actions">
+      <a class="btn sm" href="/admin/cards/export{% if batch %}?batch={{ batch }}{% endif %}">导出txt</a>
+      {% if batch %}<a class="btn sm ghost" href="/admin/cards">显示全部</a>{% endif %}
+    </div>
+  </div>
+  <div class="body flush">
+    {% if cards %}
+    <table>
+      <thead>
+        <tr><th>卡密</th><th class="num">积分</th><th>状态</th><th class="hide-sm">使用者</th><th class="hide-sm">兑换时间</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for c in cards %}
+        <tr>
+          <td>
+            <span class="mono" style="font-size:12.5px">{{ c.code }}</span>
+            <button class="btn sm ghost" type="button" data-copy="{{ c.code }}" data-copy-message="卡密已复制">复制</button>
+          </td>
+          <td class="num">{{ c.points }}</td>
+          <td>
+            {% if c.status %}<span class="badge">已使用</span>
+            {% elif c.expires_at and c.expires_at < now_ts() %}<span class="badge fail">已过期</span>
+            {% else %}<span class="badge ok">可用</span>{% endif %}
+          </td>
+          <td class="hide-sm small truncate" style="max-width:180px">{{ c.used_by_email or '-' }}</td>
+          <td class="hide-sm muted small nowrap">{{ c.used_at | ts if c.used_at else '-' }}</td>
+          <td class="nowrap">
+            {% if not c.status %}
+            <form method="post" action="/admin/cards/{{ c.id }}/delete" style="display:inline" data-confirm="删除这张卡密？">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="btn sm danger" type="submit">删除</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><div class="big">▦</div>还没有卡密，用上面的表单生成一批吧</div>
+    {% endif %}
+  </div>
+  {% if pages > 1 %}
+  <div class="pager">
+    <a class="{{ 'disabled' if page <= 1 }}" href="?page={{ page - 1 }}&batch={{ batch }}">上一页</a>
+    <span class="current">{{ page }}</span>
+    <a class="{{ 'disabled' if page >= pages }}" href="?page={{ page + 1 }}&batch={{ batch }}">下一页</a>
+    <span class="info">第 {{ page }} / {{ pages }} 页</span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

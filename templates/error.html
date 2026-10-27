@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} · {{ site_name }}{% endblock %}
+{% block sidebar %}{% endblock %}
+{% block topbar %}{% endblock %}
+
+{% block content %}
+<div style="max-width:460px;margin:80px auto;text-align:center">
+  <div style="font-size:52px;font-weight:800;color:var(--brand-2);letter-spacing:-2px">{{ code }}</div>
+  <h1 style="margin-top:6px">{{ message }}</h1>
+  <p class="muted">你可以返回上一页，或者回到首页。</p>
+  <div class="btn-row" style="justify-content:center;margin-top:18px">
+    <a class="btn" href="/">回到首页</a>
+    <a class="btn primary" href="/u">用户中心</a>
+  </div>
+</div>
+{% endblock %}

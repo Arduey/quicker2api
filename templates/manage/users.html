@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}用户管理 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "manage/_sidebar.html" %}{% endblock %}
+{% block heading %}用户管理{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>共 {{ total }} 个用户</h2>
+    <div class="actions">
+      <form method="get" class="row tight" style="margin:0">
+        <input type="search" name="q" value="{{ keyword }}" placeholder="搜索邮箱或昵称" style="width:220px">
+        <button class="btn sm" type="submit">搜索</button>
+        {% if keyword %}<a class="btn sm ghost" href="/admin/users">清除</a>{% endif %}
+      </form>
+    </div>
+  </div>
+  <div class="body flush">
+    {% if users %}
+    <table>
+      <thead>
+        <tr>
+          <th>邮箱</th>
+          <th class="hide-sm">注册</th>
+          <th class="num">积分</th>
+          <th class="num hide-sm">调用</th>
+          <th class="hide-sm">最近登录</th>
+          <th>状态</th>
+          <th class="nowrap">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <b>{{ u.email }}</b>
+            {% if u.nickname and u.nickname != u.email.split('@')[0] %}
+            <div class="muted small">{{ u.nickname }}</div>
+            {% endif %}
+          </td>
+          <td class="hide-sm muted small nowrap">{{ u.created_at | ts('%Y-%m-%d') }}</td>
+          <td class="num"><b>{{ u.points }}</b></td>
+          <td class="num hide-sm">{{ u.calls }}</td>
+          <td class="hide-sm muted small nowrap">{{ u.last_login_at | ago }}</td>
+          <td>
+            <span class="badge {{ 'ok' if u.status else 'fail' }}">{{ '正常' if u.status else '已禁用' }}</span>
+          </td>
+          <td class="nowrap">
+            <form method="post" action="/admin/users/{{ u.id }}/points" class="row tight" style="margin:0;display:inline-flex">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <input type="number" name="delta" value="100" style="width:82px;padding:4px 7px;font-size:12px">
+              <input type="hidden" name="reason" value="管理员手动调整">
+              <button class="btn sm" type="submit" title="正数增加，负数扣除">调积分</button>
+            </form>
+            <form method="post" action="/admin/users/{{ u.id }}/toggle" style="display:inline">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="btn sm {{ 'danger' if u.status else '' }}" type="submit"
+                      data-confirm="{{ '确定禁用 ' + u.email + ' 吗？禁用后该用户无法登录也无法调用接口。' if u.status else '恢复 ' + u.email + ' 的使用权限？' }}">
+                {{ '禁用' if u.status else '启用' }}
+              </button>
+            </form>
+            <form method="post" action="/admin/users/{{ u.id }}/reset-key" style="display:inline"
+                  data-confirm="重置后该用户旧的 API Key 立即失效，确定继续？">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="btn sm" type="submit">重置 Key</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><div class="big">☺</div>{% if keyword %}没有匹配「{{ keyword }}」的用户{% else %}还没有用户注册{% endif %}</div>
+    {% endif %}
+  </div>
+  {% if pages > 1 %}
+  <div class="pager">
+    <a class="{{ 'disabled' if page <= 1 }}" href="?page={{ page - 1 }}&q={{ keyword }}">上一页</a>
+    <span class="current">{{ page }}</span>
+    <a class="{{ 'disabled' if page >= pages }}" href="?page={{ page + 1 }}&q={{ keyword }}">下一页</a>
+    <span class="info">第 {{ page }} / {{ pages }} 页</span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}全局设置 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "manage/_sidebar.html" %}{% endblock %}
+{% block heading %}全局设置{% endblock %}
+
+{% block content %}
+
+{% if errors %}
+<div class="alert error">
+  <span>{% for e in errors %}{{ e }}{% if not loop.last %}<br>{% endif %}{% endfor %}</span>
+</div>
+{% endif %}
+
+<!-- ════════ Quicker 推送（全局复用参数） ════════ -->
+<div class="card">
+  <div class="head">
+    <h2>Quicker 推送参数</h2>
+    <div class="actions">
+      <button class="btn sm" type="button" id="btnDevices">获取已连接设备</button>
+      <button class="btn sm" type="button" id="btnTestPush">测试推送</button>
+    </div>
+  </div>
+  <div class="body">
+    <div class="alert info small" style="margin-bottom:16px">
+      这里的 <span class="inline-code">toUser</span>、<span class="inline-code">code</span>、
+      <span class="inline-code">toDevice</span>、<span class="inline-code">operation</span> 是平台级配置，
+      所有 API 共用。平台用户只会看到并填写自己的业务参数（data），看不到这些。
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="quicker">
+
+      <div class="row">
+        <div class="field">
+          <label>toUser · Quicker 账号邮箱 <span class="req">*</span></label>
+          <input type="email" name="to_user" value="{{ groups.quicker.to_user }}" placeholder="you@example.com">
+          <div class="help">接收推送的 Quicker 账号邮箱</div>
+        </div>
+        <div class="field">
+          <label>code · 推送验证码 <span class="req">*</span></label>
+          <div class="row tight">
+            <input type="text" name="code" id="pushCode" value="{{ groups.quicker.code }}" placeholder="Quicker 会员中心里设置的推送验证码">
+            <button class="btn sm" type="button" style="flex:0 0 auto" data-toggle-password="#pushCode">显示</button>
+          </div>
+          <div class="help">在 Quicker 会员中心 → 推送设置 里生成</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>toDevice · 目标设备</label>
+        <div class="row tight">
+          <input type="text" name="to_device" id="toDevice" value="{{ groups.quicker.to_device }}" placeholder="留空 = 当前活动主机">
+          <select id="toDevicePick" style="flex:0 0 190px">
+            <option value="">— 从已连接设备中选择 —</option>
+            <option value="*">* 所有设备</option>
+          </select>
+        </div>
+        <div class="help">
+          留空：发给当前活动的电脑（绿点那台）；
+          <span class="inline-code">*</span>：发给该账号所有电脑；
+          <span class="inline-code">!电脑名</span>：发给除该电脑外的其它电脑；
+          填电脑名：只发给该电脑（需已建立长连接）。
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:2">
+          <label>operation · 操作类型 <span class="req">*</span></label>
+          <select name="operation">
+            {% for key, label in operations %}
+            <option value="{{ key }}" {{ 'selected' if groups.quicker.operation == key }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <div class="help">
+            本平台通过推送"运行动作并取回返回值"工作，一般选 <span class="inline-code">action</span>。
+          </div>
+        </div>
+        <div class="field" style="flex:1">
+          <label>HTTP 超时（秒）</label>
+          <input type="number" name="timeout" min="5" max="120" value="{{ groups.quicker.timeout }}">
+          <div class="help">建议略大于各 API 的 maxWaitMs</div>
+        </div>
+      </div>
+
+      <div class="btn-row mt-2">
+        <button class="btn primary" type="submit">保存全局设置</button>
+      </div>
+    </form>
+
+    <div id="pushMsg" class="mt-2"></div>
+  </div>
+</div>
+
+<!-- ════════ SMTP ════════ -->
+<div class="card">
+  <div class="head">
+    <h2>邮箱发信（SMTP）</h2>
+    <div class="actions"><button class="btn sm" type="button" id="btnTestSmtp">发送测试邮件</button></div>
+  </div>
+  <div class="body">
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="smtp">
+
+      <div class="row">
+        <div class="field" style="flex:2">
+          <label>SMTP 服务器 <span class="req">*</span></label>
+          <input type="text" name="smtp_host" value="{{ groups.smtp.host }}" placeholder="smtp.qq.com">
+        </div>
+        <div class="field" style="flex:1">
+          <label>端口 <span class="req">*</span></label>
+          <input type="number" name="smtp_port" value="{{ groups.smtp.port }}">
+          <div class="help">465 = SSL，587 = STARTTLS</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>发件账号 <span class="req">*</span></label>
+          <input type="text" name="smtp_user" value="{{ groups.smtp.user }}" placeholder="you@qq.com">
+        </div>
+        <div class="field">
+          <label>发件人昵称</label>
+          <input type="text" name="smtp_display_name" value="{{ groups.smtp.display_name }}">
+        </div>
+      </div>
+      <div class="field">
+        <label>授权码 / 密码</label>
+        <input type="password" name="smtp_password" autocomplete="new-password"
+               placeholder="{{ '已设置，留空表示不修改' if groups.smtp.has_password else 'QQ 邮箱请用授权码' }}">
+        <div class="help">出于安全考虑不回显，留空即保持不变</div>
+      </div>
+      <div class="field">
+        <label>测试收件邮箱</label>
+        <input type="text" name="test_to" id="smtpTestTo" placeholder="留空则发给上面的发件账号">
+      </div>
+
+      <div class="btn-row mt-2">
+        <button class="btn primary" type="submit">保存 SMTP</button>
+      </div>
+    </form>
+    <div id="smtpMsg" class="mt-2"></div>
+  </div>
+</div>
+
+<!-- ════════ 站点 ════════ -->
+<div class="card">
+  <div class="head"><h2>站点</h2></div>
+  <div class="body">
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="site">
+
+      <div class="row">
+        <div class="field">
+          <label>站点名称</label>
+          <input type="text" name="site_name" value="{{ groups.site.site_name }}">
+        </div>
+        <div class="field">
+          <label>站点地址</label>
+          <input type="text" name="base_url" value="{{ groups.site.base_url }}" placeholder="https://api.example.com">
+          <div class="help">用于给用户展示完整调用地址</div>
+        </div>
+      </div>
+      <div class="field" style="max-width:280px">
+        <label>新用户赠送积分</label>
+        <input type="number" name="register_points" min="0" step="1" value="{{ groups.site.register_points }}">
+      </div>
+
+      <div class="btn-row mt-2">
+        <button class="btn primary" type="submit">保存站点设置</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  /* ── 从已连接设备里选 toDevice ── */
+  const pick = document.getElementById('toDevicePick');
+  const input = document.getElementById('toDevice');
+
+  document.getElementById('btnDevices').addEventListener('click', async function (ev) {
+    const restore = TB.busy(ev.target, '获取中…');
+    const data = await TB.post('/admin/api/quicker-devices', {});
+    restore();
+    if (!data.ok) {
+      document.getElementById('pushMsg').innerHTML =
+        '<div class="alert error"><span></span></div>';
+      document.querySelector('#pushMsg span').textContent =
+        (data.error && data.error.message) || '获取失败';
+      return;
+    }
+    const payload = data.data || {};
+    const list = payload.devices || [];
+    const active = payload.activeDevice || '';
+    pick.innerHTML = '<option value="">— 从已连接设备中选择 —</option>' +
+                     '<option value="*">* 所有设备</option>';
+    if (!list.length) {
+      pick.innerHTML += '<option value="" disabled>（没有在线设备，请先在 Quicker 里连接推送服务）</option>';
+    }
+    list.forEach(function (dev) {
+      const opt = document.createElement('option');
+      opt.value = dev;
+      opt.textContent = dev + (dev === active ? '（活动）' : '');
+      pick.appendChild(opt);
+    });
+    document.getElementById('pushMsg').innerHTML = '<div class="alert ok"><span></span></div>';
+    document.querySelector('#pushMsg span').textContent =
+      '已获取 ' + list.length + ' 台设备，活动设备：' + (active || '无');
+  });
+
+  pick.addEventListener('change', function () {
+    if (!pick.value) return;
+    input.value = pick.value === '*' ? '*' : pick.value;
+    pick.value = '';
+  });
+
+  /* ── 测试推送 ── */
+  document.getElementById('btnTestPush').addEventListener('click', async function (ev) {
+    const restore = TB.busy(ev.target, '推送中…');
+    const data = await TB.post('/admin/api/quicker-test', {});
+    restore();
+    const box = document.getElementById('pushMsg');
+    if (!data.ok) {
+      box.innerHTML = '<div class="alert error"><span></span></div>';
+      box.querySelector('span').textContent = (data.error && data.error.message) || '推送失败';
+      return;
+    }
+    const r = data.result || {};
+    const ok = data.ok_push;
+    box.innerHTML = '<div class="alert ' + (ok ? 'ok' : 'error') + '"><span></span></div>' +
+      '<pre class="code light mt-1" style="max-height:260px;overflow:auto"></pre>';
+    box.querySelector('span').textContent = ok
+      ? '推送成功（耗时 ' + r.time_cost_ms + ' ms），已把一段测试文字发到剪贴板'
+      : '推送失败：' + (r.error || '未知错误');
+    const pre = box.querySelector('pre');
+    pre.textContent = (r.text || '').trim() || '（无返回内容）';
+  });
+
+  /* ── 测试 SMTP ── */
+  document.getElementById('btnTestSmtp').addEventListener('click', async function (ev) {
+    const restore = TB.busy(ev.target, '发送中…');
+    const data = await TB.post('/admin/api/test-smtp', {
+      to: document.getElementById('smtpTestTo').value,
+    });
+    restore();
+    const box = document.getElementById('smtpMsg');
+    box.innerHTML = '<div class="alert ' + (data.ok ? 'ok' : 'error') + '"><span></span></div>';
+    box.querySelector('span').textContent = data.message || (data.ok ? '已发送' : '发送失败');
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}调用日志 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "manage/_sidebar.html" %}{% endblock %}
+{% block heading %}调用日志{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="head">
+    <h2>共 {{ total }} 条</h2>
+    <div class="actions">
+      <form method="get" class="row tight" style="margin:0">
+        <input type="search" name="q" value="{{ keyword }}" placeholder="邮箱 / 接口名" style="width:180px">
+        <select name="status" style="width:120px">
+          <option value="">全部状态</option>
+          <option value="ok" {{ 'selected' if status == 'ok' }}>仅成功</option>
+          <option value="fail" {{ 'selected' if status == 'fail' }}>仅失败</option>
+        </select>
+        <button class="btn sm" type="submit">筛选</button>
+      </form>
+    </div>
+  </div>
+  <div class="body flush">
+    {% if logs %}
+    <table>
+      <thead>
+        <tr>
+          <th>接口</th>
+          <th class="hide-sm">用户</th>
+          <th>结果</th>
+          <th class="num">积分</th>
+          <th class="num hide-sm">耗时</th>
+          <th class="hide-sm">IP</th>
+          <th class="nowrap">时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>
+            <a href="/admin/logs/{{ log.id }}"><b>{{ log.api_name }}</b></a>
+            <div class="muted small mono">{{ log.api_slug }}</div>
+          </td>
+          <td class="hide-sm truncate" style="max-width:180px">{{ log.user_email }}</td>
+          <td>
+            <span class="badge {{ 'ok' if log.is_success else 'fail' }}">{{ '成功' if log.is_success else '失败' }}</span>
+            {% if log.refunded %}<span class="badge warn">已退</span>{% endif %}
+            {% if log.error_message %}
+            <div class="muted small truncate" style="max-width:230px" title="{{ log.error_message }}">{{ log.error_message }}</div>
+            {% endif %}
+          </td>
+          <td class="num">{{ log.cost_points }}</td>
+          <td class="num hide-sm">{{ log.time_cost_ms }} ms</td>
+          <td class="hide-sm muted small mono">{{ log.ip or '-' }}</td>
+          <td class="nowrap muted small">{{ log.created_at | ts }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><div class="big">≣</div>没有匹配的日志</div>
+    {% endif %}
+  </div>
+  {% if pages > 1 %}
+  <div class="pager">
+    <a class="{{ 'disabled' if page <= 1 }}" href="?page={{ page - 1 }}&q={{ keyword }}&status={{ status }}">上一页</a>
+    <span class="current">{{ page }}</span>
+    <a class="{{ 'disabled' if page >= pages }}" href="?page={{ page + 1 }}&q={{ keyword }}&status={{ status }}">下一页</a>
+    <span class="info">第 {{ page }} / {{ pages }} 页</span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

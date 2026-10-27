@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}已安装 · {{ site_name }}{% endblock %}
+
+{% block sidebar %}{% endblock %}
+{% block topbar %}{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;margin:56px auto">
+  <div class="card">
+    <div class="body" style="text-align:center;padding:34px">
+      <div style="font-size:38px;margin-bottom:10px">✅</div>
+      <h1>站点已经安装完成</h1>
+      <p class="muted">为避免误操作覆盖数据，安装向导已锁定。</p>
+      <div class="btn-row" style="justify-content:center;margin-top:18px">
+        <a class="btn primary" href="/admin/login">进入管理后台</a>
+        <a class="btn" href="/login">用户登录</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head"><h3>重新安装</h3></div>
+    <div class="body">
+      <p class="small muted mb-0">
+        如果需要重新安装，请用宝塔文件管理器删除项目目录下的
+        <span class="inline-code">install.lock</span> 文件，然后刷新本页面。
+        注意：重新安装会重置管理员账号与 SMTP 等设置，但<b>不会清空</b>已有用户、API 和日志。
+      </p>
+    </div>
+  </div>
+
+  {% if report %}
+  <div class="card">
+    <div class="head"><h3>当前环境</h3></div>
+    <div class="body flush">
+      <ul class="check-list">
+        {% for c in report.checks %}
+        <li>
+          <span class="ico {{ 'ok' if c.ok else 'bad' }}">{{ '✓' if c.ok else '×' }}</span>
+          <span class="name">{{ c.name }}</span>
+          <span class="val">{{ c.value }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

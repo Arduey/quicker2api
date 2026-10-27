@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}记录 #{{ log.id }} · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "portal/_sidebar.html" %}{% endblock %}
+{% block heading %}调用详情 #{{ log.id }}{% endblock %}
+{% block topbar_right %}<a class="btn sm" href="/u/logs">← 返回记录</a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="body">
+    <div class="grid cols-4" style="gap:14px">
+      <div><div class="muted small">接口</div><b>{{ log.api_name }}</b></div>
+      <div><div class="muted small">结果</div>
+        <span class="badge {{ 'ok' if log.is_success else 'fail' }}">{{ '成功' if log.is_success else '失败' }}</span>
+        {% if log.refunded %}<span class="badge warn">积分已退</span>{% endif %}
+      </div>
+      <div><div class="muted small">消耗 / 耗时</div><b>{{ log.cost_points }} 积分 · {{ log.time_cost_ms }} ms</b></div>
+      <div><div class="muted small">时间</div><b class="small">{{ log.created_at | ts }}</b></div>
+    </div>
+    {% if log.error_message %}
+    <div class="alert error mt-2"><span>{{ log.error_message }}</span></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <div class="head"><h2>本次请求</h2>
+      <div class="actions"><button class="btn sm" type="button" data-copy-from="#paramsPre">复制</button></div>
+    </div>
+    <div class="body">
+      <pre class="code" id="paramsPre" style="max-height:420px;overflow:auto">{{ params_pretty }}</pre>
+      <div class="muted small mt-1">这是系统实际推送给 Quicker 的参数（平台级参数已打码）。</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="head"><h2>返回内容</h2>
+      <div class="actions"><button class="btn sm" type="button" data-copy-from="#respPre">复制</button></div>
+    </div>
+    <div class="body">
+      <pre class="code" id="respPre" style="max-height:420px;overflow:auto">{{ response_pretty or '（无返回内容）' }}</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

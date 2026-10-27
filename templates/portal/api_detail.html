@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}{{ api.name }} · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "portal/_sidebar.html" %}{% endblock %}
+{% block heading %}{{ api.name }}{% endblock %}
+{% block topbar_right %}<a class="btn sm" href="/u/apis">← 返回接口列表</a>{% endblock %}
+
+{% block content %}
+{% set endpoint = endpoint %}
+
+<div class="grid cols-2" style="align-items:start">
+  <!-- ═══ 左：说明 + 在线调试 ═══ -->
+  <div>
+    <div class="card">
+      <div class="body">
+        <p>{{ api.description or '暂无说明' }}</p>
+        <div class="flex wrap" style="gap:8px">
+          <span class="badge {{ 'brand' if api.cost_points else 'ok' }}">{{ api.cost_points }} 积分/次</span>
+          <span class="badge">失败自动退积分</span>
+          <span class="badge">当前余额 {{ user.points }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head"><h2>在线调试</h2></div>
+      <div class="body">
+        {% if fields %}
+        <form id="playForm" data-no-busy>
+          {% for f in fields %}
+          <div class="field">
+            <label>
+              {{ f.label or f.key }}
+              {% if f.required %}<span class="req">*</span>{% endif %}
+              <span class="inline-code" style="margin-left:6px">{{ f.key }}</span>
+            </label>
+            {% if (f.hint or '') | length > 60 %}
+            <textarea name="f_{{ f.key }}" rows="3" placeholder="{{ f.hint }}"></textarea>
+            {% else %}
+            <input type="text" name="f_{{ f.key }}" value="{{ f.default or '' }}" placeholder="{{ f.hint or '' }}">
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          <div class="alert warn small">
+            <span>在线调试会真实调用一次接口并扣除 {{ api.cost_points }} 积分（失败自动退回）。</span>
+          </div>
+
+          <button class="btn primary block" type="submit" id="playBtn">发起调用</button>
+        </form>
+        {% else %}
+        <p class="muted small">这个接口不需要任何参数，直接调用即可。</p>
+        <button class="btn primary block" type="button" id="playBtnEmpty">发起调用</button>
+        {% endif %}
+
+        <div id="playResult" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 右：调用方式 ═══ -->
+  <div>
+    <div class="card">
+      <div class="head">
+        <h2>调用地址</h2>
+        <div class="actions"><button class="btn sm" type="button" data-copy="{{ endpoint }}" data-copy-message="地址已复制">复制</button></div>
+      </div>
+      <div class="body">
+        <pre class="code light">POST {{ endpoint }}</pre>
+        <div class="muted small mt-1">也支持 GET（参数放 query），但不推荐：参数会进入浏览器历史与服务器访问日志。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head">
+        <h2>鉴权</h2>
+        <div class="actions"><button class="btn sm" type="button" data-copy="{{ user.api_key }}" data-copy-message="API Key 已复制">复制 Key</button></div>
+      </div>
+      <div class="body">
+        <p class="small">在请求头里带 API Key（二选一）：</p>
+        <pre class="code light">Authorization: Bearer {{ user.api_key[:10] }}…</pre>
+        <pre class="code light mt-1">X-API-Key: {{ user.api_key[:10] }}…</pre>
+        <p class="small muted mt-2">
+          也可以用邮箱+密码换 JWT（7 天有效）：
+        </p>
+        <pre class="code light">POST /api/auth/token
+{"email": "{{ user.email }}", "password": "***"}</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head">
+        <h2>cURL 示例</h2>
+        <div class="actions">
+          <button class="btn sm" type="button" id="copyCurl">复制</button>
+        </div>
+      </div>
+      <div class="body">
+        <pre class="code" id="curlBox" style="max-height:320px;overflow:auto"></pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head"><h2>参数说明</h2></div>
+      <div class="body flush">
+        {% if fields %}
+        <table>
+          <thead><tr><th>键</th><th>说明</th><th>必填</th></tr></thead>
+          <tbody>
+            {% for f in fields %}
+            <tr>
+              <td><span class="badge mono">{{ f.key }}</span><div class="muted small">{{ f.label }}</div></td>
+              <td class="small">{{ f.hint or '-' }}</td>
+              <td>{% if f.required %}<span class="badge fail">必填</span>{% else %}<span class="badge">可选</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty" style="padding:24px">无参数</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const slug = {{ api.slug | tojson }};
+  const endpoint = {{ endpoint | tojson }};
+  const apiKey = {{ user.api_key | tojson }};
+  const fieldDefs = {{ fields | tojson }};
+
+  /* ── cURL 示例 ── */
+  const sample = {};
+  fieldDefs.forEach(function (f) {
+    sample[f.key] = f.default || (f.label || f.key);
+  });
+  const bodyJson = JSON.stringify(sample);
+  document.getElementById('curlBox').textContent =
+    'curl -X POST ' + endpoint + ' \\\n' +
+    '  -H "Authorization: Bearer ' + apiKey + '" \\\n' +
+    '  -H "Content-Type: application/json" \\\n' +
+    "  -d '" + bodyJson + "'";
+
+  document.getElementById('copyCurl').addEventListener('click', function () {
+    TB.copy(document.getElementById('curlBox').textContent, 'cURL 示例已复制');
+  });
+
+  /* ── 在线调试 ── */
+  async function runPlay(formData) {
+    if (!formData.has('slug')) formData.append('slug', slug);
+    const box = document.getElementById('playResult');
+    box.innerHTML = '<div class="alert info"><span>调用中…</span></div>';
+    const data = await TB.post('/u/api/playground', formData);
+    const ok = data.ok;
+    box.innerHTML =
+      '<div class="alert ' + (ok ? 'ok' : 'error') + '"><span></span></div>' +
+      '<pre class="code mt-1" style="max-height:340px;overflow:auto"></pre>';
+    const span = box.querySelector('span');
+    if (ok) {
+      span.textContent = '调用成功 · 耗时 ' + (data.time_cost_ms || 0) + ' ms · 扣除 ' +
+        (data.cost || 0) + ' 积分 · 余额 ' + data.points;
+    } else {
+      let msg = (data.error && data.error.message) || '调用失败';
+      if (data.refunded) msg += '（积分已退回）';
+      span.textContent = msg;
+      if (data.points !== undefined) span.textContent += ' · 余额 ' + data.points;
+    }
+    const pre = box.querySelector('pre');
+    pre.textContent = JSON.stringify(
+      ok ? (data.data !== undefined ? data.data : data) : data,
+      null,
+      2
+    );
+  }
+
+  const form = document.getElementById('playForm');
+  if (form) {
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      const fd = new FormData(form);
+      fd.append('_csrf', TB.csrf);
+      runPlay(fd);
+    });
+  } else {
+    const btn = document.getElementById('playBtnEmpty');
+    if (btn) btn.addEventListener('click', function () {
+      const fd = new FormData();
+      fd.append('_csrf', TB.csrf);
+      runPlay(fd);
+    });
+  }
+})();
+</script>
+{% endblock %}

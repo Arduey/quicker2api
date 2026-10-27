@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}我的账号 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "portal/_sidebar.html" %}{% endblock %}
+{% block heading %}概览{% endblock %}
+{% block topbar_right %}
+<a class="btn sm" href="/u/redeem">兑换卡密</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid cols-4 mb-2">
+  <div class="stat brand">
+    <div class="label">我的积分</div>
+    <div class="value">{{ user.points }}</div>
+    <div class="hint">调用接口时扣除</div>
+  </div>
+  <div class="stat">
+    <div class="label">今日调用</div>
+    <div class="value">{{ stats.calls_today }}</div>
+    <div class="hint">累计 {{ stats.calls }} 次</div>
+  </div>
+  <div class="stat">
+    <div class="label">成功率</div>
+    <div class="value">{{ stats.success_rate }}%</div>
+    <div class="hint">失败自动退回积分</div>
+  </div>
+  <div class="stat">
+    <div class="label">累计消耗</div>
+    <div class="value">{{ stats.spent }}</div>
+    <div class="hint">积分</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="head">
+    <h2>你的 API Key</h2>
+    <div class="actions"><a class="btn sm" href="/u/profile">管理</a></div>
+  </div>
+  <div class="body">
+    <div class="row tight">
+      <input type="text" id="apiKeyBox" value="{{ user.api_key }}" readonly>
+      <button class="btn" type="button" data-copy-from="#apiKeyBox" data-copy-message="API Key 已复制" style="flex:0 0 auto">复制</button>
+    </div>
+    <div class="help mt-1">调用时放在请求头：<span class="inline-code">Authorization: Bearer &lt;API Key&gt;</span> 或 <span class="inline-code">X-API-Key: &lt;API Key&gt;</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="head">
+    <h2>可用接口</h2>
+    <div class="actions"><a class="btn sm" href="/u/apis">全部接口</a></div>
+  </div>
+  <div class="body flush">
+    {% if apis %}
+    <table>
+      <thead><tr><th>接口</th><th class="num">单次积分</th><th class="num hide-sm">参数</th><th class="num hide-sm">调用量</th><th></th></tr></thead>
+      <tbody>
+        {% for api in apis %}
+        <tr>
+          <td>
+            <b>{{ api.name }}</b>
+            <div class="muted small truncate" style="max-width:420px">{{ api.description or '' }}</div>
+          </td>
+          <td class="num">{{ api.cost_points }}</td>
+          <td class="num hide-sm">{{ api.fields | length }}</td>
+          <td class="num hide-sm">{{ api.call_count }}</td>
+          <td class="nowrap"><a class="btn sm primary" href="/u/apis/{{ api.slug }}">调用 / 调试</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><div class="big">⌘</div>管理员还没有上线任何接口</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="head">
+    <h2>最近调用</h2>
+    <div class="actions"><a class="btn sm" href="/u/logs">全部记录</a></div>
+  </div>
+  <div class="body flush">
+    {% if recent %}
+    <table>
+      <thead><tr><th>接口</th><th>结果</th><th class="num">积分</th><th class="num hide-sm">耗时</th><th class="nowrap">时间</th></tr></thead>
+      <tbody>
+        {% for log in recent %}
+        <tr>
+          <td><a href="/u/logs/{{ log.id }}">{{ log.api_name }}</a></td>
+          <td>
+            <span class="badge {{ 'ok' if log.is_success else 'fail' }}">{{ '成功' if log.is_success else '失败' }}</span>
+            {% if log.refunded %}<span class="badge warn">已退</span>{% endif %}
+          </td>
+          <td class="num">{{ log.cost_points }}</td>
+          <td class="num hide-sm">{{ log.time_cost_ms }} ms</td>
+          <td class="nowrap muted small">{{ log.created_at | ago }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><div class="big">≣</div>还没有调用记录</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

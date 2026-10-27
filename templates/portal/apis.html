@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}可用接口 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "portal/_sidebar.html" %}{% endblock %}
+{% block heading %}可用接口{% endblock %}
+
+{% block content %}
+{% if apis %}
+<div class="grid cols-2">
+  {% for api in apis %}
+  <div class="card" style="margin-bottom:0">
+    <div class="head">
+      <h3>{{ api.name }}</h3>
+      <div class="actions">
+        <span class="badge {{ 'brand' if api.cost_points else 'ok' }}">{{ api.cost_points }} 积分/次</span>
+      </div>
+    </div>
+    <div class="body">
+      <p class="small muted" style="min-height:38px">{{ api.description or '暂无说明' }}</p>
+      <div class="kv-list mb-2">
+        <div class="kv"><span class="k">调用地址</span><span class="v mono">POST /api/v1/{{ api.slug }}</span></div>
+        <div class="kv"><span class="k">参数个数</span><span class="v">{{ api.fields | length }} 个</span></div>
+        <div class="kv"><span class="k">累计调用</span><span class="v">{{ api.call_count }} 次</span></div>
+      </div>
+      {% if api.fields %}
+      <div class="flex wrap" style="gap:6px;margin-bottom:14px">
+        {% for f in api.fields %}
+        <span class="badge mono">{{ f.key }}{% if f.required %} *{% endif %}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <a class="btn primary block" href="/u/apis/{{ api.slug }}">查看详情并在线调试</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="body">
+    <div class="empty"><div class="big">⌘</div>管理员还没有上线任何接口</div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

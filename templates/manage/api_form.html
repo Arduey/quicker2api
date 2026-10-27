@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}{{ '新建 API' if is_new else '编辑 API' }} · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "manage/_sidebar.html" %}{% endblock %}
+{% block heading %}{{ '新建 API' if is_new else '编辑 API' }}{% endblock %}
+{% block topbar_right %}
+<a class="btn sm" href="/admin/apis">← 返回列表</a>
+{% endblock %}
+
+{% block content %}
+
+{% if errors %}
+<div class="alert error">
+  <span>{% for e in errors %}{{ e }}{% if not loop.last %}<br>{% endif %}{% endfor %}</span>
+</div>
+{% endif %}
+
+{% set a = draft if draft is defined else api %}
+
+<form method="post" id="apiForm">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+  <div class="grid cols-2" style="align-items:start">
+    <!-- ═══ 左：基础信息 ═══ -->
+    <div>
+      <div class="card">
+        <div class="head"><h2>基础信息</h2></div>
+        <div class="body">
+          <div class="field">
+            <label>接口名称 <span class="req">*</span></label>
+            <input type="text" name="name" value="{{ a.name }}" required maxlength="100" placeholder="例如：发送聊天消息">
+            <div class="help">展示给平台用户看的名字</div>
+          </div>
+          <div class="field">
+            <label>调用标识（slug） <span class="req">*</span></label>
+            <div class="row tight">
+              <input type="text" name="slug" id="slugInput" value="{{ a.slug }}" required maxlength="64"
+                     placeholder="send-message" pattern="[a-z0-9_\-]+">
+              <button class="btn sm" type="button" id="slugFromName" style="flex:0 0 auto">按名称生成</button>
+            </div>
+            <div class="help">
+              调用地址：<span class="inline-code" id="slugPreview">/api/v1/{{ a.slug or 'your-slug' }}</span><br>
+              只能用小写字母、数字、下划线、短横线
+            </div>
+          </div>
+          <div class="field">
+            <label>说明</label>
+            <textarea name="description" rows="3" maxlength="4000" placeholder="这个接口做什么、参数怎么填，用户会在详情页看到">{{ a.description }}</textarea>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>每次调用消耗积分</label>
+              <input type="number" name="cost_points" min="0" step="1" value="{{ a.cost_points }}">
+              <div class="help">0 = 免费；推送失败会自动退回</div>
+            </div>
+            <div class="field">
+              <label>排序</label>
+              <input type="number" name="sort_order" step="1" value="{{ a.sort_order }}">
+              <div class="help">数字小的排前面</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>状态</label>
+            <select name="status">
+              <option value="1" {{ 'selected' if a.status }}>在线（用户可调用）</option>
+              <option value="0" {{ 'selected' if not a.status }}>下线（用户不可见）</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Quicker 推送参数（本 API 专属） ═══ -->
+      <div class="card">
+        <div class="head"><h2>Quicker 推送参数</h2></div>
+        <div class="body">
+          <div class="alert info small" style="margin-bottom:16px">
+            <span>
+              <span class="inline-code">toUser</span>、<span class="inline-code">code</span>、
+              <span class="inline-code">toDevice</span>、<span class="inline-code">operation</span>
+              已在<a href="/admin/settings">全局设置</a>里配置，这里只配本接口专属的四个。
+            </span>
+          </div>
+
+          <div class="field">
+            <label>action · 动作名或 ID</label>
+            <input type="text" name="action" value="{{ a.action }}" maxlength="200" placeholder="留空表示不指定动作">
+            <div class="help">当 operation 为 <span class="inline-code">action</span> 时生效：填 Quicker 里的动作名称或动作 ID（用名称时不能有重名动作）</div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label>wait · 是否等待返回结果</label>
+              <select name="wait_flag">
+                <option value="true" {{ 'selected' if a.wait_flag }}>true — 等待动作返回结果</option>
+                <option value="false" {{ 'selected' if not a.wait_flag }}>false — 只推送，不等结果</option>
+              </select>
+              <div class="help">要在动作里用「停止」模块输出返回值，必须为 true</div>
+            </div>
+            <div class="field">
+              <label>maxWaitMs · 最长等待毫秒</label>
+              <input type="number" name="max_wait_ms" min="0" max="{{ max_wait }}" step="100" value="{{ a.max_wait_ms }}">
+              <div class="help">{{ max_wait }} = 30 秒（接口上限）</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>txt · 返回格式</label>
+            <select name="txt_flag">
+              <option value="false" {{ 'selected' if not a.txt_flag }}>false — 返回 JSON（推荐）</option>
+              <option value="true" {{ 'selected' if a.txt_flag }}>true — 返回纯文本</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 右：data 键值定义 ═══ -->
+    <div>
+      <div class="card">
+        <div class="head">
+          <h2>data 参数（用户填写）</h2>
+          <div class="actions">
+            <button class="btn sm" type="button" id="addField">+ 添加参数</button>
+          </div>
+        </div>
+        <div class="body">
+          <div class="alert info small" style="margin-bottom:14px">
+            <span>
+              这里定义的每个键，平台用户调用时填写对应的值。
+              系统会把这些键值组成<b>单层、压缩、不换行</b>的 JSON 文本，作为
+              <span class="inline-code">data</span> 参数推给 Quicker。<br>
+              例：<span class="inline-code">{"title":"周报","content":"今天完成了…"}</span>
+            </span>
+          </div>
+
+          <div class="field-row-head">
+            <span>键名 key</span><span>显示名</span><span>说明 / 提示</span><span>必填</span><span></span>
+          </div>
+
+          <div id="fieldRows"></div>
+
+          <div id="noFields" class="muted small" style="padding:14px;text-align:center;display:none">
+            还没有参数。若此动作不需要参数，可以不配。
+          </div>
+
+          <div class="mt-1">
+            <button class="btn sm" type="button" id="addField2">+ 添加一行</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head"><h2>data 预览</h2></div>
+        <div class="body">
+          <pre class="code light" id="dataPreview" style="min-height:60px;word-break:break-all;white-space:pre-wrap">{}</pre>
+          <div class="muted small mt-1">
+            这是传给 Quicker 的 <span class="inline-code">data</span> 参数值（字符串）。
+            若某个键不填且没有默认值，值会是空字符串。
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head"><h2>完整推送预览</h2></div>
+        <div class="body">
+          <pre class="code light" id="payloadPreview" style="min-height:140px;white-space:pre-wrap"></pre>
+          <div class="muted small mt-1">
+            toUser / code 来自全局设置，这里用占位符表示；实际调用时会替换为真实值。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row mt-2">
+    <button class="btn primary" type="submit">{{ '创建 API' if is_new else '保存修改' }}</button>
+    <a class="btn" href="/admin/apis">取消</a>
+    {% if not is_new %}
+    <span class="ml-auto muted small">最后更新：{{ (api.updated_at or 0) | ts }}</span>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const rowsBox = document.getElementById('fieldRows');
+  const emptyHint = document.getElementById('noFields');
+  const dataPreview = document.getElementById('dataPreview');
+  const payloadPreview = document.getElementById('payloadPreview');
+  const waitSel = document.querySelector('[name="wait_flag"]');
+  const txtSel = document.querySelector('[name="txt_flag"]');
+  const maxWaitInput = document.querySelector('[name="max_wait_ms"]');
+  const actionInput = document.querySelector('[name="action"]');
+  const slugInput = document.getElementById('slugInput');
+
+  const initial = {{ shown_fields | tojson }};
+
+  function makeRow(data) {
+    const row = document.createElement('div');
+    row.className = 'field-row';
+    row.innerHTML =
+      '<input type="text" name="field_key" placeholder="title" value="">' +
+      '<input type="text" name="field_label" placeholder="标题" value="">' +
+      '<input type="text" name="field_hint" placeholder="这个参数填什么" value="">' +
+      '<div class="req-cell"><input type="checkbox" class="req-box" title="必填"></div>' +
+      '<button type="button" class="del" title="删除">×</button>' +
+      '<input type="hidden" name="field_default" value="">' +
+      '<input type="hidden" name="field_required" value="0">';
+
+    row.querySelector('[name="field_key"]').value = data.key || '';
+    row.querySelector('[name="field_label"]').value = data.label || '';
+    row.querySelector('[name="field_hint"]').value = data.hint || '';
+    row.querySelector('[name="field_default"]').value = data.default || '';
+
+    // 必填用「隐藏 input 承载值 + 无 name 的 checkbox 控制」，
+    // 保证 field_required 与 field_key 两个并行数组始终等长、按行对齐
+    const box = row.querySelector('.req-box');
+    const hiddenReq = row.querySelector('[name="field_required"]');
+    box.checked = !!data.required;
+    hiddenReq.value = data.required ? '1' : '0';
+    box.addEventListener('change', function () {
+      hiddenReq.value = box.checked ? '1' : '0';
+      refresh();
+    });
+
+    row.querySelector('.del').addEventListener('click', function () {
+      row.remove();
+      refresh();
+    });
+    row.querySelectorAll('input[name]').forEach(function (el) {
+      el.addEventListener('input', refresh);
+      el.addEventListener('change', refresh);
+    });
+    rowsBox.appendChild(row);
+    return row;
+  }
+
+  function readRows() {
+    return Array.from(rowsBox.querySelectorAll('.field-row')).map(function (row) {
+      return {
+        key: (row.querySelector('[name="field_key"]').value || '').trim(),
+        label: (row.querySelector('[name="field_label"]').value || '').trim(),
+        hint: (row.querySelector('[name="field_hint"]').value || '').trim(),
+        default: (row.querySelector('[name="field_default"]').value || ''),
+        required: row.querySelector('[name="field_required"]').value === '1',
+      };
+    });
+  }
+
+  function refresh() {
+    const rows = readRows();
+    emptyHint.style.display = rows.length ? 'none' : 'block';
+
+    // data 预览
+    const obj = {};
+    rows.forEach(function (r) {
+      if (!r.key) return;
+      obj[r.key] = r.default || '';
+    });
+    dataPreview.textContent = JSON.stringify(obj);
+
+    // 完整 payload 预览
+    const payload = {
+      toUser: '<全局设置·toUser>',
+      code: '<全局设置·code>',
+      toDevice: '<全局设置·toDevice>',
+      operation: '<全局设置·operation>',
+      action: actionInput.value || '',
+      wait: waitSel.value === 'true',
+      maxWaitMs: parseInt(maxWaitInput.value || '30000', 10),
+      txt: txtSel.value === 'true',
+      data: JSON.stringify(obj),
+    };
+    payloadPreview.textContent = JSON.stringify(payload, null, 2);
+
+    // slug 预览
+    document.getElementById('slugPreview').textContent = '/api/v1/' + (slugInput.value || 'your-slug');
+  }
+
+  document.getElementById('addField').addEventListener('click', function () { makeRow({}); refresh(); });
+  document.getElementById('addField2').addEventListener('click', function () { makeRow({}); refresh(); });
+
+  [waitSel, txtSel, maxWaitInput, actionInput, slugInput].forEach(function (el) {
+    el.addEventListener('input', refresh);
+    el.addEventListener('change', refresh);
+  });
+
+  /* 按名称生成 slug */
+  document.getElementById('slugFromName').addEventListener('click', function () {
+    const name = (document.querySelector('[name="name"]').value || '').trim();
+    if (!name) { TB.toast('请先填写接口名称', 'warn'); return; }
+    let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!slug) slug = 'api-' + Date.now().toString(36);
+    slugInput.value = slug.slice(0, 64);
+    refresh();
+  });
+
+  /* 初始化已有参数 */
+  if (Array.isArray(initial) && initial.length) {
+    initial.forEach(function (f) { makeRow(f); });
+  } else {
+    makeRow({ key: '', label: '', hint: '', required: false });
+  }
+  refresh();
+})();
+</script>
+{% endblock %}

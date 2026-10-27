@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}API 管理 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "manage/_sidebar.html" %}{% endblock %}
+{% block heading %}API 管理{% endblock %}
+{% block topbar_right %}
+<a class="btn primary sm" href="/admin/apis/new">+ 新建 API</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="body flush">
+    {% if apis %}
+    <table>
+      <thead>
+        <tr>
+          <th>接口</th>
+          <th>调用标识</th>
+          <th>动作 / 参数</th>
+          <th class="num">单次积分</th>
+          <th class="num">调用</th>
+          <th class="num">成功率</th>
+          <th>状态</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for api in apis %}
+        <tr>
+          <td>
+            <a href="/admin/apis/{{ api.id }}"><b>{{ api.name }}</b></a>
+            {% if api.description %}
+            <div class="muted small truncate" style="max-width:260px">{{ api.description }}</div>
+            {% endif %}
+          </td>
+          <td><span class="badge mono">{{ api.slug }}</span></td>
+          <td class="small">
+            {% if api.action %}<span class="badge info">action: {{ api.action }}</span>{% endif %}
+            <span class="badge">{{ api.param_count }} 个参数</span>
+            <div class="muted small" style="margin-top:3px">
+              wait={{ 'true' if api.wait_flag else 'false' }},
+              maxWaitMs={{ api.max_wait_ms }},
+              txt={{ 'true' if api.txt_flag else 'false' }}
+            </div>
+          </td>
+          <td class="num">{{ api.cost_points }}</td>
+          <td class="num">{{ api.call_count }}</td>
+          <td class="num">
+            {% if api.call_count %}{{ (api.success_count * 100 / api.call_count) | round(1) }}%{% else %}-{% endif %}
+          </td>
+          <td>
+            <span class="badge {{ 'ok' if api.status else '' }}">{{ '在线' if api.status else '已下线' }}</span>
+          </td>
+          <td class="nowrap">
+            <a class="btn sm" href="/admin/apis/{{ api.id }}">编辑</a>
+            <form method="post" action="/admin/apis/{{ api.id }}/toggle" style="display:inline">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="btn sm" type="submit">{{ '下线' if api.status else '上线' }}</button>
+            </form>
+            <form method="post" action="/admin/apis/{{ api.id }}/delete" style="display:inline"
+                  data-confirm="确定删除「{{ api.name }}」吗？历史调用日志会保留，但该接口的调用地址会立即失效。">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="btn sm danger" type="submit">删除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+      <div class="big">⌘</div>
+      还没有 API<br>
+      <div class="muted small mt-1 mb-2">先配好「全局设置」里的 Quicker 参数，再创建接口</div>
+      <a class="btn primary" href="/admin/apis/new">创建第一个 API</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

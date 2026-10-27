@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}注册 · {{ site_name }}{% endblock %}
+
+{% block sidebar %}{% endblock %}
+{% block topbar %}{% endblock %}
+
+{% block content %}
+<div class="auth-wrap" style="min-height:auto;padding:0">
+  <div class="auth-card" style="max-width:430px;margin:52px auto">
+    <div class="brand-row">
+      <div class="dot">P</div>
+      <div class="name">{{ site_name }}</div>
+    </div>
+
+    <h1>创建账号</h1>
+    <p class="lead">注册即赠送 <b>{{ gift }}</b> 积分</p>
+
+    {% if error %}
+    <div class="alert error"><span>{{ error }}</span></div>
+    {% endif %}
+
+    <form method="post" id="regForm" novalidate>
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+      <div class="field">
+        <label>邮箱 <span class="req">*</span></label>
+        <input type="email" name="email" id="email" value="{{ email }}" required autocomplete="email" placeholder="you@example.com">
+        <div class="help">用于登录和接收验证码</div>
+      </div>
+
+      <div class="field">
+        <label>邮箱验证码 <span class="req">*</span></label>
+        <div class="row tight">
+          <input type="text" name="code" id="code" maxlength="10" required inputmode="numeric" placeholder="6 位数字" autocomplete="one-time-code">
+          <button class="btn sm" type="button" id="sendCode" style="flex:0 0 auto">发送验证码</button>
+        </div>
+        <div class="help" id="codeHelp"></div>
+      </div>
+
+      <div class="field">
+        <label>昵称</label>
+        <input type="text" name="nickname" maxlength="64" placeholder="可选，默认用邮箱前缀">
+      </div>
+
+      <div class="field">
+        <label>密码 <span class="req">*</span></label>
+        <div class="row tight">
+          <input type="password" name="password" id="pwd1" required autocomplete="new-password" placeholder="至少 8 位，不能是纯数字">
+          <button class="btn sm" type="button" style="flex:0 0 auto" data-toggle-password="#pwd1">显示</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>确认密码 <span class="req">*</span></label>
+        <input type="password" name="password2" required autocomplete="new-password">
+      </div>
+
+      <button class="btn primary block lg mt-2" type="submit" data-busy-label="注册中…">注册</button>
+    </form>
+
+    <div class="bottom">
+      已有账号？<a href="/login">去登录</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const btn = document.getElementById('sendCode');
+  const emailInput = document.getElementById('email');
+  const help = document.getElementById('codeHelp');
+  let timer = null;
+
+  function setHelp(text, ok) {
+    help.textContent = text || '';
+    help.style.color = ok === false ? 'var(--danger)' : '';
+  }
+
+  btn.addEventListener('click', async function () {
+    const email = (emailInput.value || '').trim();
+    if (!email || email.indexOf('@') < 1) {
+      setHelp('请先填写正确的邮箱', false);
+      emailInput.focus();
+      return;
+    }
+    const restore = TB.busy(btn, '发送中…');
+    const data = await TB.post('/api/send-code', { email: email, purpose: 'register' });
+    restore();
+    if (!data.ok) {
+      setHelp((data.error && data.error.message) || '发送失败', false);
+      return;
+    }
+    setHelp('验证码已发送，请查收邮件（含垃圾箱），10 分钟内有效', true);
+    let left = 60;
+    btn.disabled = true;
+    btn.textContent = left + 's 后重发';
+    timer = setInterval(function () {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(timer);
+        btn.disabled = false;
+        btn.textContent = '重新发送';
+        return;
+      }
+      btn.textContent = left + 's 后重发';
+    }, 1000);
+  });
+})();
+</script>
+{% endblock %}

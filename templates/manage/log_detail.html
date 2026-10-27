@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}日志 #{{ log.id }} · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "manage/_sidebar.html" %}{% endblock %}
+{% block heading %}调用详情 #{{ log.id }}{% endblock %}
+{% block topbar_right %}<a class="btn sm" href="/admin/logs">← 返回日志</a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="body">
+    <div class="grid cols-4" style="gap:14px">
+      <div><div class="muted small">接口</div><b>{{ log.api_name }}</b><div class="mono small muted">{{ log.api_slug }}</div></div>
+      <div><div class="muted small">用户</div><b>{{ log.user_email }}</b></div>
+      <div><div class="muted small">结果</div>
+        <span class="badge {{ 'ok' if log.is_success else 'fail' }}">{{ '成功' if log.is_success else '失败' }}</span>
+        {% if log.refunded %}<span class="badge warn">积分已退</span>{% endif %}
+      </div>
+      <div><div class="muted small">时间</div><b class="small">{{ log.created_at | ts }}</b></div>
+    </div>
+    <div class="grid cols-4 mt-2" style="gap:14px">
+      <div><div class="muted small">消耗积分</div><b>{{ log.cost_points }}</b></div>
+      <div><div class="muted small">耗时</div><b>{{ log.time_cost_ms }} ms</b></div>
+      <div><div class="muted small">HTTP 状态</div><b>{{ log.http_status or '-' }}</b></div>
+      <div><div class="muted small">来源 IP</div><b class="mono small">{{ log.ip or '-' }}</b></div>
+    </div>
+    {% if log.error_message %}
+    <div class="alert error mt-2"><span>{{ log.error_message }}</span></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <div class="head"><h2>推送给 Quicker 的请求体</h2>
+      <div class="actions"><button class="btn sm" type="button" data-copy-from="#paramsPre">复制</button></div>
+    </div>
+    <div class="body">
+      <pre class="code" id="paramsPre" style="max-height:420px;overflow:auto">{{ params_pretty }}</pre>
+      <div class="muted small mt-1">code 已打码。</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head"><h2>Quicker 返回</h2>
+      <div class="actions"><button class="btn sm" type="button" data-copy-from="#respPre">复制</button></div>
+    </div>
+    <div class="body">
+      <pre class="code" id="respPre" style="max-height:420px;overflow:auto">{{ response_pretty or '（无返回内容）' }}</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

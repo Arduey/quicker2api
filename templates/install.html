@@ -1,0 +1,361 @@
+{# 安装向导：不继承 base.html（还没有侧栏和登录态） #}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>安装向导 · {{ site_name }}</title>
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="auth-wrap" style="align-items:flex-start;padding-top:52px">
+  <div style="width:100%;max-width:700px">
+
+    <div class="flex mb-2" style="gap:12px">
+      <div class="dot" style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#ff8a3d,#e24b06);display:grid;place-items:center;color:#fff;font-weight:800">P</div>
+      <div>
+        <div style="font-weight:800;font-size:16px">安装向导</div>
+        <div class="muted small">4 步完成，全部在浏览器里点选，不需要命令行</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="body">
+
+        <!-- 步骤条 -->
+        <div class="steps" id="steps">
+          <div class="step active" data-step="1"><div class="n">1</div>环境检查</div>
+          <div class="step" data-step="2"><div class="n">2</div>数据库</div>
+          <div class="step" data-step="3"><div class="n">3</div>站点与邮件</div>
+          <div class="step" data-step="4"><div class="n">4</div>管理员</div>
+        </div>
+
+        <div id="globalMsg"></div>
+
+        <!-- ══ 步骤 1：环境检查 ══ -->
+        <section class="panel active" data-panel="1">
+          <h1>环境检查</h1>
+          <p class="muted small">下面这些条件必须满足才能继续。缺失的依赖可以在宝塔「Python 项目 → 依赖」里安装。</p>
+          <div class="card" style="margin:16px 0;border-radius:8px">
+            <ul class="check-list" id="envList">
+              <li><span class="ico">…</span><span class="name">检查中</span></li>
+            </ul>
+          </div>
+          <div class="btn-row">
+            <button class="btn" type="button" id="recheck">重新检查</button>
+            <button class="btn primary ml-auto" type="button" id="toStep2">下一步</button>
+          </div>
+          <div id="envBlock" class="alert error" style="display:none;margin-top:16px"></div>
+        </section>
+
+        <!-- ══ 步骤 2：数据库 ══ -->
+        <section class="panel" data-panel="2">
+          <h1>MySQL 数据库</h1>
+          <p class="muted small">
+            在宝塔「数据库 → 添加数据库」里建一个库和用户（记下库名、用户名、密码），填到这里。
+            库不存在时安装程序会自动创建；表结构全部自动建立。
+          </p>
+
+          <div class="row mt-2">
+            <div class="field" style="flex:3">
+              <label>数据库地址 <span class="req">*</span></label>
+              <input type="text" name="db_host" value="127.0.0.1" placeholder="127.0.0.1 或 localhost">
+            </div>
+            <div class="field" style="flex:1">
+              <label>端口 <span class="req">*</span></label>
+              <input type="text" name="db_port" value="3306">
+            </div>
+          </div>
+          <div class="field">
+            <label>数据库名 <span class="req">*</span></label>
+            <input type="text" name="db_database" placeholder="例如 toolbox_api">
+            <div class="help">只能包含字母、数字、下划线</div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>用户名 <span class="req">*</span></label>
+              <input type="text" name="db_user" placeholder="例如 toolbox_api">
+            </div>
+            <div class="field">
+              <label>密码</label>
+              <input type="password" name="db_password" autocomplete="new-password">
+            </div>
+          </div>
+
+          <div class="btn-row mt-1">
+            <button class="btn" type="button" id="testDb">测试连接</button>
+            <button class="btn ghost" type="button" id="back1">上一步</button>
+            <button class="btn primary ml-auto" type="button" id="toStep3">下一步</button>
+          </div>
+          <div id="dbMsg" class="mt-2"></div>
+        </section>
+
+        <!-- ══ 步骤 3：站点 + SMTP ══ -->
+        <section class="panel" data-panel="3">
+          <h1>站点信息</h1>
+
+          <div class="row">
+            <div class="field">
+              <label>站点名称 <span class="req">*</span></label>
+              <input type="text" name="site_name" value="API 分发平台">
+              <div class="help">显示在页面标题和邮件里</div>
+            </div>
+            <div class="field">
+              <label>站点地址</label>
+              <input type="text" name="base_url" placeholder="https://api.example.com">
+              <div class="help">可选；用于给用户展示完整的调用示例地址</div>
+            </div>
+          </div>
+
+          <h2 class="mt-3">邮箱发信（SMTP）</h2>
+          <p class="muted small">
+            注册需要邮箱验证码，所以必须配置。QQ 邮箱请用「授权码」而不是登录密码。
+          </p>
+
+          <div class="row">
+            <div class="field" style="flex:2">
+              <label>SMTP 服务器 <span class="req">*</span></label>
+              <input type="text" name="smtp_host" placeholder="smtp.qq.com" value="smtp.qq.com">
+            </div>
+            <div class="field" style="flex:1">
+              <label>端口 <span class="req">*</span></label>
+              <input type="text" name="smtp_port" value="465">
+              <div class="help">465 = SSL，587 = STARTTLS</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>发件账号 <span class="req">*</span></label>
+            <input type="text" name="smtp_user" placeholder="you@qq.com">
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>授权码 / 密码 <span class="req">*</span></label>
+              <input type="password" name="smtp_password" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label>发件人昵称</label>
+              <input type="text" name="smtp_display_name" placeholder="留空则用站点名称">
+            </div>
+          </div>
+          <div class="field">
+            <label>测试收件邮箱</label>
+            <input type="text" name="test_to" placeholder="留空则发给自己（上面填的发件账号）">
+          </div>
+
+          <div class="btn-row mt-1">
+            <button class="btn" type="button" id="testSmtp">发送测试邮件</button>
+            <button class="btn ghost" type="button" id="back2">上一步</button>
+            <button class="btn primary ml-auto" type="button" id="toStep4">下一步</button>
+          </div>
+          <div id="smtpMsg" class="mt-2"></div>
+        </section>
+
+        <!-- ══ 步骤 4：管理员 ══ -->
+        <section class="panel" data-panel="4">
+          <h1>管理员账号</h1>
+          <p class="muted small">这个账号用来管理 API、用户、卡密和日志，请妥善保存。</p>
+
+          <div class="field mt-2">
+            <label>管理员邮箱 <span class="req">*</span></label>
+            <input type="email" name="admin_email" placeholder="admin@example.com" autocomplete="off">
+          </div>
+          <div class="field">
+            <label>管理员名称</label>
+            <input type="text" name="admin_name" placeholder="管理员">
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>密码 <span class="req">*</span></label>
+              <input type="password" name="admin_password" autocomplete="new-password" placeholder="至少 8 位，不能是纯数字">
+            </div>
+            <div class="field">
+              <label>确认密码 <span class="req">*</span></label>
+              <input type="password" name="admin_password2" autocomplete="new-password">
+            </div>
+          </div>
+          <div class="field">
+            <label>新用户赠送积分</label>
+            <input type="number" name="register_points" value="30" min="0" step="1">
+            <div class="help">注册即赠送的积分数量，安装后也能在「全局设置」里改</div>
+          </div>
+
+          <div class="alert info">
+            点击安装后会依次：建库 → 建表 → 写入 SMTP 等设置 → 创建管理员 → 生成 config.json 和 install.lock。
+            重复点击不会破坏已有数据（表结构使用 IF NOT EXISTS）。
+          </div>
+
+          <div class="btn-row mt-2">
+            <button class="btn ghost" type="button" id="back3">上一步</button>
+            <button class="btn primary ml-auto" type="button" id="runInstall" data-busy-label="正在安装…">开始安装</button>
+          </div>
+          <div id="runMsg" class="mt-2"></div>
+        </section>
+
+      </div>
+    </div>
+
+    <p class="muted small" style="text-align:center">
+      装好后请删除或重命名 <span class="inline-code">install.lock</span> 之外没有别的要动的地方；
+      重装需先删除 <span class="inline-code">install.lock</span>。
+    </p>
+  </div>
+</div>
+
+<script>
+const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function showStep(n) {
+  $$('.panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === String(n)));
+  $$('.step').forEach((s) => {
+    const num = Number(s.dataset.step);
+    s.classList.toggle('active', num === n);
+    s.classList.toggle('done', num < n);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setMsg(id, ok, text) {
+  const el = $(id);
+  if (!text) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="alert ' + (ok ? 'ok' : 'error') + '"><span></span></div>';
+  el.querySelector('span').textContent = text;
+}
+
+/* ── 收集所有表单字段 ── */
+function collect() {
+  const data = new FormData();
+  $$('input[name]').forEach((input) => data.append(input.name, input.value));
+  data.append('_csrf', CSRF);
+  return data;
+}
+
+async function postForm(url, data) {
+  const resp = await fetch(url, {
+    method: 'POST', body: data, credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': CSRF, Accept: 'application/json' },
+  });
+  try { return await resp.json(); }
+  catch (e) { return { ok: false, message: '服务器返回异常（HTTP ' + resp.status + '）' }; }
+}
+
+/* ── 环境检查 ── */
+let envReady = false;
+async function loadEnv() {
+  const list = $('#envList');
+  list.innerHTML = '<li><span class="ico">…</span><span class="name">检查中</span></li>';
+  let data;
+  try {
+    const resp = await fetch('/install/api/env');
+    data = await resp.json();
+  } catch (e) {
+    list.innerHTML = '<li><span class="ico bad">×</span><span class="name">无法连接</span><span class="hint">请确认 Python 项目已启动</span></li>';
+    return;
+  }
+  envReady = !!data.ready;
+  list.innerHTML = '';
+  data.checks.forEach((c) => {
+    const li = document.createElement('li');
+    const cls = c.ok ? 'ok' : (c.required ? 'bad' : 'ok');
+    li.innerHTML =
+      '<span class="ico ' + cls + '">' + (c.ok ? '✓' : (c.required ? '×' : '!')) + '</span>' +
+      '<span class="name"></span><span class="val"></span>' +
+      (c.hint ? '<span class="hint"></span>' : '');
+    li.querySelector('.name').textContent = c.name;
+    li.querySelector('.val').textContent = c.value || '';
+    if (c.hint) li.querySelector('.hint').textContent = c.hint;
+    list.appendChild(li);
+  });
+  const bad = data.checks.filter((c) => c.required && !c.ok);
+  const block = $('#envBlock');
+  if (bad.length) {
+    block.style.display = 'flex';
+    block.textContent = '还有 ' + bad.length + ' 项必须满足：' + bad.map((c) => c.name).join('、');
+  } else {
+    block.style.display = 'none';
+  }
+}
+
+/* ── 步骤跳转 ── */
+$('#recheck').addEventListener('click', loadEnv);
+$('#toStep2').addEventListener('click', () => {
+  if (!envReady) { $('#envBlock').style.display = 'flex'; return; }
+  showStep(2);
+});
+$('#back1').addEventListener('click', () => showStep(1));
+$('#back2').addEventListener('click', () => showStep(2));
+$('#back3').addEventListener('click', () => showStep(3));
+
+function requireDbFields() {
+  const need = ['db_database', 'db_user'];
+  const missing = need.filter((n) => !document.querySelector('[name="' + n + '"]').value.trim());
+  if (missing.length) {
+    setMsg('#dbMsg', false, '请先填写：' + missing.map((m) => m === 'db_database' ? '数据库名' : '用户名').join('、'));
+    return false;
+  }
+  return true;
+}
+
+$('#testDb').addEventListener('click', async (ev) => {
+  if (!requireDbFields()) return;
+  const restore = TB.busy(ev.target, '连接中…');
+  const data = await postForm('/install/api/test-db', collect());
+  restore();
+  setMsg('#dbMsg', data.ok, data.message);
+});
+
+$('#toStep3').addEventListener('click', async (ev) => {
+  if (!requireDbFields()) return;
+  const restore = TB.busy(ev.target, '连接中…');
+  const data = await postForm('/install/api/test-db', collect());
+  restore();
+  if (data.ok) { setMsg('#dbMsg', true, data.message); showStep(3); }
+  else setMsg('#dbMsg', false, data.message);
+});
+
+$('#testSmtp').addEventListener('click', async (ev) => {
+  const restore = TB.busy(ev.target, '发送中…');
+  const data = await postForm('/install/api/test-smtp', collect());
+  restore();
+  setMsg('#smtpMsg', data.ok, data.message);
+});
+
+$('#toStep4').addEventListener('click', () => {
+  const host = document.querySelector('[name="smtp_host"]').value.trim();
+  const user = document.querySelector('[name="smtp_user"]').value.trim();
+  const pass = document.querySelector('[name="smtp_password"]').value;
+  if (!host || !user || !pass) {
+    setMsg('#smtpMsg', false, 'SMTP 服务器、发件账号、授权码都必须填写');
+    return;
+  }
+  setMsg('#smtpMsg', true, '');
+  showStep(4);
+});
+
+$('#runInstall').addEventListener('click', async (ev) => {
+  const email = document.querySelector('[name="admin_email"]').value.trim();
+  const p1 = document.querySelector('[name="admin_password"]').value;
+  const p2 = document.querySelector('[name="admin_password2"]').value;
+  if (!email) { setMsg('#runMsg', false, '请填写管理员邮箱'); return; }
+  if (p1.length < 8) { setMsg('#runMsg', false, '管理员密码至少 8 位'); return; }
+  if (p1 !== p2) { setMsg('#runMsg', false, '两次输入的密码不一致'); return; }
+
+  const restore = TB.busy(ev.target, '正在安装…');
+  const data = await postForm('/install/api/run', collect());
+  if (data.ok) {
+    setMsg('#runMsg', true, '安装完成，正在跳转登录页…');
+    document.querySelectorAll('input, button').forEach((el) => (el.disabled = true));
+    setTimeout(() => { location.href = data.login_url || '/admin/login'; }, 1200);
+    return;
+  }
+  restore();
+  setMsg('#runMsg', false, data.message || '安装失败');
+});
+
+loadEnv();
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

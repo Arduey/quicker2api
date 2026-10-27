@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}卡密兑换 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "portal/_sidebar.html" %}{% endblock %}
+{% block heading %}卡密兑换{% endblock %}
+
+{% block content %}
+<div class="grid cols-2" style="align-items:start">
+  <div class="card">
+    <div class="head"><h2>兑换积分</h2></div>
+    <div class="body">
+      <div class="stat brand mb-2">
+        <div class="label">当前积分</div>
+        <div class="value">{{ user.points }}</div>
+      </div>
+      <form method="post">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <div class="field">
+          <label>卡密</label>
+          <input type="text" name="code" required placeholder="TB-XXXX-XXXX-XXXX-XXXX"
+                 style="font-family:var(--mono);text-transform:uppercase" autocomplete="off">
+          <div class="help">不区分大小写，空格会被自动忽略</div>
+        </div>
+        <button class="btn primary block" type="submit" data-busy-label="兑换中…">立即兑换</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head"><h2>兑换记录</h2></div>
+    <div class="body flush">
+      {% if history %}
+      <table>
+        <thead><tr><th>卡密</th><th class="num">积分</th><th class="nowrap">时间</th></tr></thead>
+        <tbody>
+          {% for h in history %}
+          <tr>
+            <td class="mono small">{{ h.code }}</td>
+            <td class="num"><span class="badge ok">+{{ h.points }}</span></td>
+            <td class="nowrap muted small">{{ h.used_at | ts }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><div class="big">▦</div>还没有兑换记录</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

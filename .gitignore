@@ -1,0 +1,16 @@
+# 安装后自动生成，含数据库密码与签名密钥，不要提交
+config.json
+config.json.tmp
+install.lock
+
+# 本地测试/临时产物
+.smoke_test.py
+.unit_test.py
+.e2e_test.py
+*.zip
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.log
+.DS_Store

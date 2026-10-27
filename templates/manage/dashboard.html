@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}概览 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "manage/_sidebar.html" %}{% endblock %}
+{% block heading %}概览{% endblock %}
+
+{% block content %}
+
+{% if not quicker_ready %}
+<div class="alert warn">
+  <span>Quicker 全局设置还没配好（toUser / code / operation），接口调用会失败。</span>
+  <a href="/admin/settings" style="margin-left:auto;white-space:nowrap">去配置 →</a>
+</div>
+{% endif %}
+{% if not smtp_ready %}
+<div class="alert error">
+  <span>SMTP 未配置，用户无法收到注册验证码。</span>
+  <a href="/admin/settings" style="margin-left:auto;white-space:nowrap">去配置 →</a>
+</div>
+{% endif %}
+
+<div class="grid cols-4 mb-2">
+  <div class="stat brand">
+    <div class="label">今日调用</div>
+    <div class="value">{{ stats.calls_today }}</div>
+    <div class="hint">累计 {{ stats.calls }} 次</div>
+  </div>
+  <div class="stat">
+    <div class="label">注册用户</div>
+    <div class="value">{{ stats.users }}</div>
+    <div class="hint">近 24h +{{ stats.users_today }}</div>
+  </div>
+  <div class="stat">
+    <div class="label">在线接口</div>
+    <div class="value">{{ stats.apis_active }}</div>
+    <div class="hint">共 {{ stats.apis }} 个</div>
+  </div>
+  <div class="stat">
+    <div class="label">消耗积分</div>
+    <div class="value">{{ stats.points_spent }}</div>
+    <div class="hint">用户余额合计 {{ stats.points_held }}</div>
+  </div>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <div class="head">
+      <h2>最近调用</h2>
+      <div class="actions"><a class="btn sm" href="/admin/logs">全部日志</a></div>
+    </div>
+    <div class="body flush">
+      {% if recent %}
+      <table>
+        <thead>
+          <tr>
+            <th>接口</th>
+            <th class="hide-sm">用户</th>
+            <th class="num">耗时</th>
+            <th class="num">积分</th>
+            <th class="nowrap">时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent %}
+          <tr>
+            <td>
+              <a href="/admin/logs/{{ log.id }}">{{ log.api_name }}</a>
+              <span class="badge {{ 'ok' if log.is_success else 'fail' }}">{{ '成功' if log.is_success else '失败' }}</span>
+            </td>
+            <td class="hide-sm truncate" style="max-width:150px">{{ log.user_email }}</td>
+            <td class="num">{{ log.time_cost_ms }} ms</td>
+            <td class="num">{{ log.cost_points }}</td>
+            <td class="nowrap muted small">{{ log.created_at | ago }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><div class="big">≣</div>还没有调用记录</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <h2>接口调用排行</h2>
+      <div class="actions"><a class="btn sm" href="/admin/apis">管理 API</a></div>
+    </div>
+    <div class="body flush">
+      {% if top_apis %}
+      <table>
+        <thead>
+          <tr>
+            <th>接口</th>
+            <th class="num">调用</th>
+            <th class="num">成功率</th>
+            <th class="num">单次</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for api in top_apis %}
+          <tr>
+            <td>
+              <a href="/admin/apis/{{ api.id }}">{{ api.name }}</a>
+              {% if not api.status %}<span class="badge">已下线</span>{% endif %}
+              <div class="muted small mono">{{ api.slug }}</div>
+            </td>
+            <td class="num">{{ api.call_count }}</td>
+            <td class="num">
+              {% if api.call_count %}{{ (api.success_count * 100 / api.call_count) | round(1) }}%{% else %}-{% endif %}
+            </td>
+            <td class="num">{{ api.cost_points }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">
+        <div class="big">⌘</div>
+        还没有创建接口<br>
+        <a class="btn primary mt-2" href="/admin/apis/new">创建第一个 API</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="head"><h2>快速上手</h2></div>
+  <div class="body">
+    <div class="kv-list">
+      <div class="kv"><span class="k">1. 全局设置</span><span class="v">填 Quicker 的 toUser / code / toDevice / operation（这四个参数所有 API 复用），点「测试推送」确认能推通。</span></div>
+      <div class="kv"><span class="k">2. 创建 API</span><span class="v">设置 action、是否等待（wait）、最大等待（maxWaitMs）、返回格式（txt）、每次消耗积分，以及用户要填的 data 键。</span></div>
+      <div class="kv"><span class="k">3. 用户调用</span><span class="v">平台用户用 API Key 调 <span class="inline-code">POST /api/v1/&lt;slug&gt;</span>，系统把用户填的键值压成 JSON 文本放进 data 推给 Quicker。</span></div>
+      <div class="kv"><span class="k">4. 计费</span><span class="v">调用前预扣积分，推送失败自动退回，全部记录进调用日志。</span></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
