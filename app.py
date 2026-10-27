@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""API 分发平台 —— 入口文件。
+"""本地调试入口。
 
-宝塔「Python 项目」部署：
-    项目启动文件 / WSGI 文件：app.py
-    启动方式：gunicorn（命令由宝塔自动生成，指向 app:app）
-    端口：自己填一个，例如 8000
+宝塔部署请用 wsgi.py（gunicorn 填 `wsgi:app`）：
+    项目里同时有 app.py 和 app/ 包，`app:app` 会被解析成包对象而报错。
 
 本地调试：
     python app.py        # 默认 0.0.0.0:8000

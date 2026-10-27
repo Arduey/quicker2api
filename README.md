@@ -17,7 +17,8 @@
 
 ```
 /www/wwwroot/toolbox/
-├── app.py              ← 启动文件
+├── wsgi.py             ← gunicorn 用这个（wsgi:app）
+├── app.py              ← 本地调试用（python app.py）
 ├── requirements.txt
 ├── app/
 ├── templates/
@@ -48,10 +49,17 @@
 | Python 版本 | **3.8 或更高**（推荐 3.10 / 3.11 / 3.12） |
 | 框架 | Flask |
 | 启动方式 | **gunicorn** |
-| 启动文件 / WSGI | `app.py` |
+| 应用名称 / 启动命令 | `wsgi:app`（**不要填 `app:app`**，见下方说明） |
+| 通讯协议 | `wsgi` |
 | 端口 | 例如 `8000`（不冲突即可） |
 | 运行用户 | `www` |
 | 是否安装依赖 | **是**（会自动读 `requirements.txt`） |
+
+> ⚠️ **应用名称必须填 `wsgi:app`，不能填 `app:app`。**
+> 项目里同时有 `app.py` 和 `app/` 包，Python 导入 `app` 时会优先解析同名包，
+> 于是 `app:app` 拿到的是包对象，启动时报
+> `AttributeError: module 'app' has no attribute 'app'`。
+> 用 `wsgi.py` 里的 `wsgi:app` 就没有这个歧义。
 
 如果没有「自动安装依赖」选项，创建好项目后在项目列表点 **模块** / **依赖** →
 **从 requirements.txt 安装**，粘贴下面内容或者直接指向文件：
@@ -240,7 +248,8 @@ QQ 邮箱必须用**授权码**（设置 → 账户 → 开启 SMTP 服务后生
 ## 六、目录说明
 
 ```
-app.py                启动入口（gunicorn 指向 app:app）
+wsgi.py               WSGI 入口（gunicorn 指向 wsgi:app）★宝塔用这个
+app.py                本地调试入口（python app.py）
 requirements.txt      依赖清单
 app/
   __init__.py         应用工厂、请求钩子、错误处理
