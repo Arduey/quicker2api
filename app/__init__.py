@@ -186,3 +186,11 @@ def _register_error_handlers(app: Flask) -> None:
         if _json_wanted():
             return jsonify({"ok": False, "error": {"code": "bad_method", "message": "请求方法不允许"}}), 405
         return render_template("error.html", code=405, message="请求方法不允许"), 405
+
+
+# ═════════════════════ WSGI 兼容入口 ═════════════════════
+# 项目里同时有 app.py 和 app/ 包，`gunicorn app:app` 里的 import app 会优先
+# 命中这个包。为了让「应用名称填 app:app」也能直接跑起来，这里把实例挂成
+# 包属性。wsgi:app 依然可用，两者等价。
+app = create_app()
+

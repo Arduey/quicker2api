@@ -49,17 +49,18 @@
 | Python 版本 | **3.8 或更高**（推荐 3.10 / 3.11 / 3.12） |
 | 框架 | Flask |
 | 启动方式 | **gunicorn** |
-| 应用名称 / 启动命令 | `wsgi:app`（**不要填 `app:app`**，见下方说明） |
+| 应用名称 / 启动命令 | `wsgi:app`（`app:app` 也兼容，见下方说明） |
 | 通讯协议 | `wsgi` |
 | 端口 | 例如 `8000`（不冲突即可） |
 | 运行用户 | `www` |
 | 是否安装依赖 | **是**（会自动读 `requirements.txt`） |
 
-> ⚠️ **应用名称必须填 `wsgi:app`，不能填 `app:app`。**
-> 项目里同时有 `app.py` 和 `app/` 包，Python 导入 `app` 时会优先解析同名包，
-> 于是 `app:app` 拿到的是包对象，启动时报
-> `AttributeError: module 'app' has no attribute 'app'`。
-> 用 `wsgi.py` 里的 `wsgi:app` 就没有这个歧义。
+> ⚠️ **应用名称填 `wsgi:app`（推荐）。**
+> 项目里同时有 `app.py` 和 `app/` 包，直接写 `app:app` 时 Python 会优先把
+> `app` 解析成同名包，历史版本会报
+> `Failed to find attribute 'app' in 'app'` / `AttributeError`。
+> 现在包里也挂了一份应用实例，所以 `app:app` 和 `wsgi:app` 都能启动，
+> 但 `wsgi:app` 语义更明确，建议用它。
 
 如果没有「自动安装依赖」选项，创建好项目后在项目列表点 **模块** / **依赖** →
 **从 requirements.txt 安装**，粘贴下面内容或者直接指向文件：
