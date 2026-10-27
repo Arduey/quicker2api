@@ -10,10 +10,39 @@
 
 ### 1. 上传代码
 
-宝塔面板 → **文件** → 进入 `/www/wwwroot/` → 新建目录（例如 `toolbox`）→ 进入该目录 →
-点 **上传**，把 `toolbox.zip` 传上去 → 右键压缩包 → **解压**。
+有两种方式，任选其一。
 
-解压后目录结构应是这样（`app.py` 必须和 `app/`、`templates/`、`static/` 同级）：
+**方式 A：FTP 直接同步（推荐，不需要解压）**
+
+项目根目录自带 `deploy.py`，走 FTP 把文件树直接传上去，**只传有变化的文件**：
+
+```bash
+# 第一次先写连接信息（.deploy.env 已在 .gitignore 里，不会被提交）
+cat > .deploy.env <<'EOF'
+FTP_HOST=你的服务器IP
+FTP_PORT=21
+FTP_USER=FTP账号
+FTP_PASS=FTP密码
+EOF
+
+python deploy.py --dry-run   # 先看会传哪些
+python deploy.py             # 真正上传
+python deploy.py --all       # 强制全量重传
+python deploy.py --delete    # 顺带删掉远端多余文件
+```
+
+传完在宝塔「Python 项目」点一次 **重启** 即可，**不需要打包、不需要解压**。
+
+> 也可以直接用 GitHub 拉取：在宝塔终端或「计划任务」里
+> `git pull` 到项目目录，同样只需重启。
+
+**方式 B：宝塔文件管理器上传**
+
+宝塔面板 → **文件** → 进入 `/www/wwwroot/` → 新建目录（例如 `toolbox`）→ 进入该目录 →
+把 `app/`、`templates/`、`static/` 三个目录和 `wsgi.py`、`app.py`、`requirements.txt`
+逐个上传（或用「上传文件夹」一次传整个目录）。
+
+无论哪种方式，最终目录结构应是这样（`wsgi.py` 必须和 `app/`、`templates/`、`static/` 同级）：
 
 ```
 /www/wwwroot/toolbox/
@@ -24,6 +53,9 @@
 ├── templates/
 └── static/
 ```
+
+> 不要上传 `config.json`、`install.lock`、`__pycache__`、`gunicorn_conf.py` 这些：
+> 它们由安装向导或宝塔自己生成，覆盖掉会出问题。`deploy.py` 已自动排除。
 
 ### 2. 创建 MySQL 数据库
 

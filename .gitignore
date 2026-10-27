@@ -3,6 +3,9 @@ config.json
 config.json.tmp
 install.lock
 
+# 部署连接信息（含 FTP 密码）
+.deploy.env
+
 # 本地测试/临时产物
 .smoke_test.py
 .unit_test.py
