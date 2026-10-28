@@ -1,0 +1,72 @@
+<aside class="sidebar">
+  <div class="brand">
+    <span class="dot">P</span>
+    <span class="truncate">{{ site_name }}</span>
+  </div>
+
+  {% if is_admin %}
+  {# ───────── 管理员：一套控制台，含管理 + 试用 ───────── #}
+  <div class="nav-label">控制台</div>
+  <a href="/admin" class="{{ 'active' if request.path.rstrip('/') == '/admin' }}">
+    <span class="i">◉</span> 概览
+  </a>
+  <a href="/admin/apis" class="{{ 'active' if request.path.startswith('/admin/apis') }}">
+    <span class="i">⌘</span> 接口管理
+  </a>
+  <a href="/admin/users" class="{{ 'active' if request.path.startswith('/admin/users') }}">
+    <span class="i">☺</span> 用户管理
+  </a>
+  <a href="/admin/cards" class="{{ 'active' if request.path.startswith('/admin/cards') }}">
+    <span class="i">▦</span> 卡密充值
+  </a>
+  <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') }}">
+    <span class="i">≣</span> 调用日志
+  </a>
+
+  <div class="nav-label">试用</div>
+  <a href="/admin/try" class="{{ 'active' if request.path.startswith('/admin/try') }}">
+    <span class="i">▷</span> 接口试用
+  </a>
+
+  <div class="nav-label">系统</div>
+  <a href="/admin/settings" class="{{ 'active' if request.path.startswith('/admin/settings') }}">
+    <span class="i">⚙</span> 全局设置
+  </a>
+  <a href="/admin/profile" class="{{ 'active' if request.path.startswith('/admin/profile') }}">
+    <span class="i">☰</span> 我的账号
+  </a>
+  {% else %}
+  {# ───────── 普通用户 ───────── #}
+  <div class="nav-label">我的</div>
+  <a href="/u" class="{{ 'active' if request.path.rstrip('/') == '/u' }}">
+    <span class="i">◉</span> 概览
+  </a>
+  <a href="/u/apis" class="{{ 'active' if request.path.startswith('/u/apis') }}">
+    <span class="i">⌘</span> 可用接口
+  </a>
+  <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
+    <span class="i">≣</span> 调用记录
+  </a>
+  <a href="/u/redeem" class="{{ 'active' if request.path.startswith('/u/redeem') }}">
+    <span class="i">▦</span> 卡密兑换
+  </a>
+  <div class="nav-label">账号</div>
+  <a href="/u/profile" class="{{ 'active' if request.path.startswith('/u/profile') }}">
+    <span class="i">⚙</span> 账号设置
+  </a>
+  {% endif %}
+
+  <div class="spacer"></div>
+  <div class="foot">
+    <div class="truncate" style="color:#8b8375">{{ viewer.email }}</div>
+    {% if is_admin %}
+    <div style="color:#e8e2d5;font-weight:700;margin-top:4px">管理员</div>
+    {% else %}
+    <div style="color:#e8e2d5;font-weight:700;margin-top:4px">{{ viewer.points }} 积分</div>
+    {% endif %}
+    <form method="post" action="/logout" style="margin-top:6px">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <button class="btn ghost sm" type="submit" style="color:#b9b1a2;padding-left:0">退出登录</button>
+    </form>
+  </div>
+</aside>

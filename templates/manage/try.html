@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}接口试用 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
+{% block heading %}接口试用{% endblock %}
+{% block topbar_right %}
+<a class="btn sm" href="/admin/apis">接口管理</a>
+{% endblock %}
+
+{% block content %}
+
+{% if not quicker_ready %}
+<div class="alert warn">
+  <span>Quicker 全局参数（toUser / code / operation）还没配全，试用会失败。</span>
+  <a href="/admin/settings" style="margin-left:auto;white-space:nowrap">去配置 →</a>
+</div>
+{% endif %}
+
+<div class="alert info small">
+  <span>这里用管理员身份直接试接口，<b>不扣积分、不用另外注册普通账号</b>。走的推送逻辑与真实调用完全一致。</span>
+</div>
+
+<div class="grid cols-2" style="align-items:start">
+  <!-- 左：选接口 + 填参数 -->
+  <div>
+    <div class="card">
+      <div class="head"><h2>1. 选择接口</h2></div>
+      <div class="body">
+        {% if apis %}
+        <form method="get" action="/admin/try">
+          <div class="field" style="margin:0">
+            <select name="slug" onchange="this.form.submit()">
+              <option value="">— 请选择要试用的接口 —</option>
+              {% for api in apis %}
+              <option value="{{ api.slug }}" {{ 'selected' if current and current.slug == api.slug }}>
+                {{ api.name }}（{{ api.slug }}）{{ '' if api.status else ' [已下线]' }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </form>
+        {% else %}
+        <div class="empty" style="padding:26px 12px">
+          还没有任何接口
+          <div class="mt-2"><a class="btn primary" href="/admin/apis/new">去创建</a></div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if current %}
+    <div class="card">
+      <div class="head">
+        <h2>2. 填写参数</h2>
+        <div class="actions">
+          <a class="btn sm" href="/admin/apis/{{ current.id }}">编辑此接口</a>
+        </div>
+      </div>
+      <div class="body">
+        {% if not current.status %}
+        <div class="alert warn"><span>该接口当前已下线，真实调用会返回 403；试用仍可测试推送效果。</span></div>
+        {% endif %}
+
+        <div class="flex wrap mb-2" style="gap:8px">
+          <span class="badge mono">{{ current.slug }}</span>
+          <span class="badge {{ 'brand' if current.cost_points else 'ok' }}">{{ current.cost_points }} 积分/次</span>
+          <span class="badge">wait={{ 'true' if current.wait_flag else 'false' }}</span>
+          <span class="badge">maxWaitMs={{ current.max_wait_ms }}</span>
+          <span class="badge">txt={{ 'true' if current.txt_flag else 'false' }}</span>
+          {% if current.action %}<span class="badge info">action: {{ current.action }}</span>{% endif %}
+        </div>
+
+        <form id="tryForm">
+          {% for f in current.fields %}
+          <div class="field">
+            <label>
+              {{ f.label or f.key }}
+              {% if f.required %}<span class="req">*</span>{% endif %}
+              <span class="inline-code" style="margin-left:6px">{{ f.key }}</span>
+            </label>
+            {% if (f.hint or '') | length > 60 %}
+            <textarea name="f_{{ f.key }}" rows="3" placeholder="{{ f.hint }}">{{ f.default or '' }}</textarea>
+            {% else %}
+            <input type="text" name="f_{{ f.key }}" value="{{ f.default or '' }}" placeholder="{{ f.hint or '' }}">
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          {% if not current.fields %}
+          <div class="muted small mb-2">这个接口没有参数，直接点下面的按钮即可。</div>
+          {% endif %}
+
+          <button class="btn primary block" type="submit" id="tryBtn">发起试用（不扣积分）</button>
+        </form>
+
+        <div class="muted small mt-1">
+          实际调用地址：<span class="inline-code">POST /api/v1/{{ current.slug }}</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 右：结果 -->
+  <div>
+    {% if current %}
+    <div class="card">
+      <div class="head"><h2>3. 结果</h2></div>
+      <div class="body">
+        <div id="tryResult">
+          <div class="empty" style="padding:34px 12px">
+            <div class="big">▷</div>
+            填好参数后点「发起试用」
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const form = document.getElementById('tryForm');
+  if (!form) return;
+  const slug = {{ (current.slug if current else '') | tojson }};
+  const box = document.getElementById('tryResult');
+
+  form.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    const fd = new FormData(form);
+    fd.append('slug', slug);
+
+    box.innerHTML = '<div class="alert info"><span>推送中，请稍候…</span></div>';
+    const data = await TB.post('/admin/api/try', fd);
+
+    const ok = data.ok_push;
+    box.innerHTML =
+      '<div class="alert ' + (ok ? 'ok' : 'error') + '"><span></span></div>' +
+      '<div class="muted small mt-1" id="metaLine"></div>' +
+      '<h3 class="mt-2" style="font-size:13px">推送给 Quicker 的请求</h3>' +
+      '<pre class="code" id="payloadPre" style="max-height:240px;overflow:auto"></pre>' +
+      '<h3 class="mt-2" style="font-size:13px">Quicker 返回</h3>' +
+      '<pre class="code" id="respPre" style="max-height:280px;overflow:auto"></pre>';
+
+    const span = box.querySelector('span');
+    if (ok) {
+      span.textContent = '试用成功';
+    } else {
+      span.textContent = '试用失败：' + (data.error || '未知错误');
+    }
+
+    box.querySelector('#metaLine').textContent =
+      '耗时 ' + (data.time_cost_ms || 0) + ' ms · 本次不扣积分';
+
+    box.querySelector('#payloadPre').textContent =
+      JSON.stringify(data.payload || {}, null, 2);
+    box.querySelector('#respPre').textContent =
+      (data.raw || '').trim() || '（无返回内容）';
+  });
+})();
+</script>
+{% endblock %}

@@ -16,6 +16,11 @@ bp = Blueprint("portal", __name__)
 
 
 def guard(view):
+    """用户中心入口。
+
+    控制台已统一到 /admin：管理员误打 /u* 的地址一律送去管理后台，
+    不再维护第二套界面。普通用户照旧。
+    """
     from functools import wraps
 
     @wraps(view)
@@ -26,6 +31,10 @@ def guard(view):
                 return json_err("页面已过期，请刷新后重试", "csrf", 403)
             flash("页面已过期，请刷新后重试", "error")
             return redirect(url_for("portal.dashboard"))
+        if security.viewer_is_admin(security.current_viewer()):
+            if request.path.startswith("/u/api/") or request.is_json:
+                return json_err("管理员没有积分账户，请用后台的「接口试用」", "admin_not_allowed", 403)
+            return redirect(url_for("manage.dashboard"))
         return view(*a, **kw)
 
     return wrapper
@@ -38,55 +47,34 @@ def guard(view):
 def dashboard():
     viewer = security.current_viewer()
     db = get_db()
-    is_admin = security.viewer_is_admin(viewer)
-
-    if is_admin:
-        # 管理员是管理视角：不查个人积分，改看全站概况
-        stats = {
-            "calls": db.scalar("SELECT COUNT(*) AS c FROM api_logs"),
-            "calls_today": db.scalar(
-                "SELECT COUNT(*) AS c FROM api_logs WHERE created_at >= %s", (now_ts() - 86400,)),
-            "spent": db.scalar(
-                "SELECT COALESCE(SUM(cost_points),0) AS c FROM api_logs WHERE refunded = 0"),
-            "success_rate": 0,
-        }
-        total = stats["calls"]
-        if total:
-            ok_count = db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE is_success = 1")
-            stats["success_rate"] = round(ok_count * 100.0 / total, 1)
-        recent = db.query(
-            "SELECT id, user_email, api_name, api_slug, is_success, cost_points, refunded, "
-            "time_cost_ms, created_at FROM api_logs ORDER BY id DESC LIMIT 8"
-        )
-    else:
-        stats = {
-            "calls": db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (viewer["id"],)),
-            "calls_today": db.scalar(
-                "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND created_at >= %s",
-                (viewer["id"], now_ts() - 86400),
-            ),
-            "spent": db.scalar(
-                "SELECT COALESCE(SUM(cost_points),0) AS c FROM api_logs "
-                "WHERE user_id = %s AND refunded = 0",
-                (viewer["id"],),
-            ),
-            "success_rate": 0,
-        }
-        total = stats["calls"]
-        if total:
-            ok_count = db.scalar(
-                "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND is_success = 1",
-                (viewer["id"],),
-            )
-            stats["success_rate"] = round(ok_count * 100.0 / total, 1)
-        recent = db.query(
-            "SELECT id, api_name, api_slug, is_success, cost_points, refunded, time_cost_ms, created_at "
-            "FROM api_logs WHERE user_id = %s ORDER BY id DESC LIMIT 8",
+    stats = {
+        "calls": db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (viewer["id"],)),
+        "calls_today": db.scalar(
+            "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND created_at >= %s",
+            (viewer["id"], now_ts() - 86400),
+        ),
+        "spent": db.scalar(
+            "SELECT COALESCE(SUM(cost_points),0) AS c FROM api_logs "
+            "WHERE user_id = %s AND refunded = 0",
+            (viewer["id"],),
+        ),
+        "success_rate": 0,
+    }
+    total = stats["calls"]
+    if total:
+        ok_count = db.scalar(
+            "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND is_success = 1",
             (viewer["id"],),
         )
+        stats["success_rate"] = round(ok_count * 100.0 / total, 1)
+    recent = db.query(
+        "SELECT id, api_name, api_slug, is_success, cost_points, refunded, time_cost_ms, created_at "
+        "FROM api_logs WHERE user_id = %s ORDER BY id DESC LIMIT 8",
+        (viewer["id"],),
+    )
 
     apis = _visible_apis(db)
-    return render_template("portal/dashboard.html", viewer=viewer, user=viewer, is_admin=is_admin,
+    return render_template("portal/dashboard.html", viewer=viewer, user=viewer, is_admin=False,
                            stats=stats, recent=recent, apis=apis)
 
 

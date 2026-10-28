@@ -140,6 +140,7 @@ def _register_hooks(app: Flask) -> None:
             "current_admin": _safe(current_admin),
             "current_user": _safe(current_user),
             "viewer": viewer,
+            "is_admin": viewer_is_admin(viewer),
             "is_admin_view": viewer_is_admin(viewer),
             "now_ts": now_ts,
             "settings": _safe(settings_all, {}),

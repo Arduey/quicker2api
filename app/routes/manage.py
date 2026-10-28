@@ -563,3 +563,131 @@ def card_export():
     filename = "cards-%s.txt" % (batch or "unused")
     return Response(body, mimetype="text/plain",
                     headers={"Content-Disposition": "attachment; filename=%s" % filename})
+
+
+# ═════════════════════ 接口试用（管理员免切账号） ═════════════════════
+@bp.get("/try")
+@guard
+def api_try():
+    """管理员直接在这里填参数试接口，不用再注册/登录一个普通账号。
+
+    试用走的是与真实调用完全一致的组装与推送逻辑，只是：
+      - 不扣积分（管理员没有积分账户）
+      - 日志里标记为管理端试用，便于区分
+    """
+    db = get_db()
+    slug = text(request.args.get("slug"), 64)
+    rows = db.query(
+        "SELECT id, slug, name, description, action, wait_flag, max_wait_ms, txt_flag, "
+        "cost_points, fields_json, call_count, success_count, status "
+        "FROM apis ORDER BY sort_order ASC, id ASC"
+    )
+    for row in rows:
+        try:
+            row["fields"] = json.loads(row["fields_json"] or "[]")
+        except ValueError:
+            row["fields"] = []
+        total = int(row.get("call_count") or 0)
+        row["success_rate"] = (
+            round(int(row.get("success_count") or 0) * 100.0 / total, 1) if total else None
+        )
+
+    current = None
+    if slug:
+        current = next((r for r in rows if r["slug"] == slug), None)
+
+    cfg = quicker.global_settings()
+    quicker_ready = bool(cfg.get("to_user") and cfg.get("code") and cfg.get("operation"))
+    return render_template("manage/try.html", apis=rows, current=current,
+                           quicker_ready=quicker_ready)
+
+
+@bp.post("/api/try")
+@guard
+def api_try_push():
+    """真正发一次推送（不扣费、不占用用户积分）。"""
+    db = get_db()
+    slug = text(request.form.get("slug"), 64)
+    api = db.query_one("SELECT * FROM apis WHERE slug = %s", (slug,))
+    if api is None:
+        return json_err("接口不存在", "not_found", 404)
+    if int(api["status"]) != 1:
+        return json_err("该接口已下线，无法试用", "offline", 403)
+
+    try:
+        fields = json.loads(api["fields_json"] or "[]")
+    except ValueError:
+        fields = []
+
+    values = {}
+    for field in fields:
+        key = field.get("key") or ""
+        if key:
+            values[key] = request.form.get("f_" + key, "")
+
+    errors = quicker.validate_fields(fields, values)
+    if errors:
+        return json_ok(ok_push=False, error="；".join(errors), cost=0)
+
+    payload = quicker.build_payload(api, fields, values)
+    result = quicker.push(payload)
+
+    # 试用也记日志，但标记为管理端，用户侧看不到
+    try:
+        params_json = json.dumps(quicker.mask_payload(payload), ensure_ascii=False)
+    except (TypeError, ValueError):
+        params_json = "{}"
+    db.insert(
+        "INSERT INTO api_logs (user_id, user_email, api_id, api_slug, api_name, params_json, "
+        "response_text, is_success, cost_points, refunded, http_status, time_cost_ms, "
+        "error_message, ip, created_at) VALUES (0,%s,%s,%s,%s,%s,%s,%s,0,0,%s,%s,%s,%s,%s)",
+        ("[管理端试用]", api["id"], api["slug"], api["name"], params_json,
+         (result["text"] or "")[:60000], 1 if result["ok"] else 0,
+         result["status"], result["time_cost_ms"], (result["error"] or "")[:500],
+         "[admin]", now_ts()),
+    )
+    db.execute(
+        "UPDATE apis SET call_count = call_count + 1, success_count = success_count + %s WHERE id = %s",
+        (1 if result["ok"] else 0, api["id"]),
+    )
+
+    return json_ok(
+        ok_push=result["ok"],
+        error=result["error"],
+        data=result["response"] if result["response"] else result["text"],
+        raw=(result["text"] or "")[:20000],
+        payload=quicker.mask_payload(payload),
+        time_cost_ms=result["time_cost_ms"],
+        cost=0,
+    )
+
+
+# ═════════════════════ 我的账号（管理员） ═════════════════════
+@bp.route("/profile", methods=["GET", "POST"])
+@guard
+def profile():
+    db = get_db()
+    admin = security.current_admin()
+    errors: list[str] = []
+    if request.method == "POST":
+        old = request.form.get("old_password") or ""
+        new = request.form.get("new_password") or ""
+        new2 = request.form.get("new_password2") or ""
+        row = db.query_one("SELECT password_hash FROM admins WHERE id = %s", (admin["id"],))
+        if not security.verify_password(row["password_hash"], old):
+            errors.append("原密码错误")
+        elif security.password_problem(new):
+            errors.append(security.password_problem(new))
+        elif new != new2:
+            errors.append("两次输入的新密码不一致")
+        else:
+            db.execute("UPDATE admins SET password_hash = %s WHERE id = %s",
+                       (security.hash_password(new), admin["id"]))
+            flash("密码已更新", "success")
+            return redirect(url_for("manage.profile"))
+
+    detail = db.query_one(
+        "SELECT id, email, name, status, created_at, last_login_at, last_login_ip "
+        "FROM admins WHERE id = %s", (admin["id"],)
+    )
+    return render_template("manage/profile.html", detail=detail, errors=errors)
