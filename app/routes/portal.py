@@ -231,8 +231,6 @@ def redeem_post():
         flash("卡密不存在，请检查是否输入有误", "error")
     elif int(row["status"]) != 0:
         flash("该卡密已被使用", "error")
-    elif int(row["expires_at"] or 0) and int(row["expires_at"]) < now_ts():
-        flash("该卡密已过期", "error")
     else:
         with db.tx() as conn:
             affected = db.tx_execute(

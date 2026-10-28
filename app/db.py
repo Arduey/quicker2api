@@ -301,4 +301,10 @@ def migrate_admin_into_users(target: Database | None = None) -> list[str]:
             moved += 1
         if moved:
             notes.append("已把 %d 个旧管理员账号并入 users 表（admins 表保留做备份）" % moved)
+
+    # 3. redeem_codes.exported（卡密「是否已导出」标记，用于筛选）
+    if table_exists("redeem_codes") and not has_column("redeem_codes", "exported"):
+        db.execute("ALTER TABLE redeem_codes ADD COLUMN exported TINYINT NOT NULL DEFAULT 0")
+        notes.append("已给 redeem_codes 表加上 exported 字段")
+
     return notes

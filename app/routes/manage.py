@@ -480,30 +480,46 @@ def card_list():
     page = max(1, to_int(request.args.get("page"), 1, 1))
     per_page = 30
     batch = text(request.args.get("batch"), 64)
+    keyword = text(request.args.get("q"), 64)
+    status_filter = text(request.args.get("status"), 16)
 
-    where, args = "", []
+    clauses, args = [], []
     if batch:
-        where, args = "WHERE batch = %s", [batch]
+        clauses.append("batch = %s")
+        args.append(batch)
+    if keyword:
+        clauses.append("code LIKE %s")
+        args.append("%%%s%%" % keyword.upper())
+    if status_filter == "unused":
+        clauses.append("status = 0")
+    elif status_filter == "used":
+        clauses.append("status = 1")
+    elif status_filter == "exported":
+        clauses.append("exported = 1")
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
 
     total = db.scalar("SELECT COUNT(*) AS c FROM redeem_codes %s" % where, tuple(args))
     rows = db.query(
-        "SELECT id, code, points, batch, status, used_by_email, used_at, expires_at, note, created_at "
+        "SELECT id, code, points, batch, status, exported, used_by_email, used_at, note, created_at "
         "FROM redeem_codes %s ORDER BY id DESC LIMIT %s OFFSET %s" % (where, per_page, (page - 1) * per_page),
         tuple(args),
     )
     batches = db.query(
         "SELECT batch, COUNT(*) AS total, SUM(status = 1) AS used, "
         "MIN(created_at) AS created_at, SUM(points) AS points "
-        "FROM redeem_codes GROUP BY batch ORDER BY MIN(id) DESC LIMIT 30"
+        "FROM redeem_codes GROUP BY batch ORDER BY MIN(id) DESC LIMIT 40"
     )
     summary = {
+        "all": db.scalar("SELECT COUNT(*) AS c FROM redeem_codes"),
         "unused": db.scalar("SELECT COUNT(*) AS c FROM redeem_codes WHERE status = 0"),
         "used": db.scalar("SELECT COUNT(*) AS c FROM redeem_codes WHERE status = 1"),
+        "exported": db.scalar("SELECT COUNT(*) AS c FROM redeem_codes WHERE exported = 1"),
         "points_used": db.scalar("SELECT COALESCE(SUM(points),0) AS c FROM redeem_codes WHERE status = 1"),
     }
     pages = max(1, (int(total) + per_page - 1) // per_page)
     return render_template("manage/cards.html", cards=rows, batches=batches, summary=summary,
-                           page=page, pages=pages, batch=batch, total=total)
+                           page=page, pages=pages, batch=batch, total=total,
+                           keyword=keyword, status_filter=status_filter)
 
 
 @bp.post("/cards/generate")
@@ -516,8 +532,6 @@ def card_generate():
     points = to_int(request.form.get("points"), 100, 1, 1000000)
     prefix = text(request.form.get("prefix"), 16) or "TB"
     note = text(request.form.get("note"), 200)
-    days = to_int(request.form.get("expires_days"), 0, 0, 3650)
-    expires_at = now_ts() + days * 86400 if days > 0 else 0
     batch = "%s-%s" % (prefix.upper(), now_ts())
 
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -530,14 +544,72 @@ def card_generate():
         if db.query_one("SELECT id FROM redeem_codes WHERE code = %s", (code,)):
             continue
         db.insert(
-            "INSERT INTO redeem_codes (code, points, batch, status, expires_at, note, created_at) "
-            "VALUES (%s,%s,%s,0,%s,%s,%s)",
-            (code, points, batch, expires_at, note, now_ts()),
+            "INSERT INTO redeem_codes (code, points, batch, status, note, created_at) "
+            "VALUES (%s,%s,%s,0,%s,%s)",
+            (code, points, batch, note, now_ts()),
         )
         made.append(code)
 
     flash("已生成 %d 张卡密（每张 %d 积分，批次 %s）" % (len(made), points, batch), "success")
     return redirect(url_for("manage.card_list", batch=batch))
+
+
+@bp.post("/cards/batch-delete")
+@guard
+def card_batch_delete():
+    """批量删除卡密。
+
+    已使用的卡密默认不删（它对应真实的积分发放记录），
+    除非显式勾选 include_used。
+    """
+    db = get_db()
+    ids = [to_int(v, 0, 1) for v in request.form.getlist("ids")]
+    ids = [i for i in ids if i > 0]
+    if not ids:
+        flash("没有选中任何卡密", "error")
+        return redirect(request.referrer or url_for("manage.card_list"))
+
+    include_used = str(request.form.get("include_used", "")).lower() in ("1", "on", "true")
+    placeholders = ",".join(["%s"] * len(ids))
+    if include_used:
+        deleted = db.execute("DELETE FROM redeem_codes WHERE id IN (%s)" % placeholders, tuple(ids))
+    else:
+        deleted = db.execute(
+            "DELETE FROM redeem_codes WHERE id IN (%s) AND status = 0" % placeholders, tuple(ids))
+        skipped = len(ids) - int(deleted or 0)
+        if skipped:
+            flash("已删除 %d 张未使用卡密，%d 张已使用的被保留" % (int(deleted or 0), skipped), "success")
+            return redirect(request.referrer or url_for("manage.card_list"))
+
+    flash("已删除 %d 张卡密" % int(deleted or 0), "success")
+    return redirect(request.referrer or url_for("manage.card_list"))
+
+
+@bp.post("/cards/batch-delete-filtered")
+@guard
+def card_batch_delete_filtered():
+    """按当前筛选条件批量删除（只删未使用，避免误删已发放记录）。"""
+    db = get_db()
+    batch = text(request.form.get("batch"), 64)
+    keyword = text(request.form.get("q"), 64)
+    status_filter = text(request.form.get("status"), 16)
+
+    clauses, args = [], []
+    if batch:
+        clauses.append("batch = %s")
+        args.append(batch)
+    if keyword:
+        clauses.append("code LIKE %s")
+        args.append("%%%s%%" % keyword.upper())
+    if status_filter == "used":
+        flash("当前筛选是「已使用」，出于安全考虑不允许批量删除已使用卡密", "error")
+        return redirect(request.referrer or url_for("manage.card_list"))
+    clauses.append("status = 0")
+
+    deleted = db.execute(
+        "DELETE FROM redeem_codes WHERE " + " AND ".join(clauses), tuple(args))
+    flash("按当前筛选条件删除了 %d 张未使用卡密" % int(deleted or 0), "success")
+    return redirect(url_for("manage.card_list", batch=batch, q=keyword, status=status_filter))
 
 
 @bp.post("/cards/<int:card_id>/delete")
@@ -555,108 +627,25 @@ def card_export():
 
     db = get_db()
     batch = text(request.args.get("batch"), 64)
+    status_filter = text(request.args.get("status"), 16)
+    # 默认只导出未使用的；status=all 可导出全部
     if batch:
-        rows = db.query("SELECT code, points FROM redeem_codes WHERE batch = %s ORDER BY id", (batch,))
+        rows = db.query(
+            "SELECT id, code, points, status FROM redeem_codes WHERE batch = %s ORDER BY id", (batch,))
+    elif status_filter == "all":
+        rows = db.query("SELECT id, code, points, status FROM redeem_codes ORDER BY id")
     else:
-        rows = db.query("SELECT code, points FROM redeem_codes WHERE status = 0 ORDER BY id")
+        rows = db.query(
+            "SELECT id, code, points, status FROM redeem_codes WHERE status = 0 ORDER BY id")
+
+    # 导出过的打上标记，方便下次筛「未导出」
+    ids = [r["id"] for r in rows]
+    if ids:
+        placeholders = ",".join(["%s"] * len(ids))
+        db.execute("UPDATE redeem_codes SET exported = 1 WHERE id IN (%s)" % placeholders, tuple(ids))
+
     body = "\n".join(row["code"] for row in rows)
     filename = "cards-%s.txt" % (batch or "unused")
     return Response(body, mimetype="text/plain",
                     headers={"Content-Disposition": "attachment; filename=%s" % filename})
 
-
-# ═════════════════════ 接口试用（管理员免切账号） ═════════════════════
-@bp.get("/try")
-@guard
-def api_try():
-    """管理员直接在这里填参数试接口，不用再注册/登录一个普通账号。
-
-    试用走的是与真实调用完全一致的组装与推送逻辑，只是：
-      - 不扣积分（管理员没有积分账户）
-      - 日志里标记为管理端试用，便于区分
-    """
-    db = get_db()
-    slug = text(request.args.get("slug"), 64)
-    rows = db.query(
-        "SELECT id, slug, name, description, action, wait_flag, max_wait_ms, txt_flag, "
-        "cost_points, fields_json, call_count, success_count, status "
-        "FROM apis ORDER BY sort_order ASC, id ASC"
-    )
-    for row in rows:
-        try:
-            row["fields"] = json.loads(row["fields_json"] or "[]")
-        except ValueError:
-            row["fields"] = []
-        total = int(row.get("call_count") or 0)
-        row["success_rate"] = (
-            round(int(row.get("success_count") or 0) * 100.0 / total, 1) if total else None
-        )
-
-    current = None
-    if slug:
-        current = next((r for r in rows if r["slug"] == slug), None)
-
-    cfg = quicker.global_settings()
-    quicker_ready = bool(cfg.get("to_user") and cfg.get("code") and cfg.get("operation"))
-    return render_template("manage/try.html", apis=rows, current=current,
-                           quicker_ready=quicker_ready)
-
-
-@bp.post("/api/try")
-@guard
-def api_try_push():
-    """真正发一次推送（不扣费、不占用用户积分）。"""
-    db = get_db()
-    slug = text(request.form.get("slug"), 64)
-    api = db.query_one("SELECT * FROM apis WHERE slug = %s", (slug,))
-    if api is None:
-        return json_err("接口不存在", "not_found", 404)
-    if int(api["status"]) != 1:
-        return json_err("该接口已下线，无法试用", "offline", 403)
-
-    try:
-        fields = json.loads(api["fields_json"] or "[]")
-    except ValueError:
-        fields = []
-
-    values = {}
-    for field in fields:
-        key = field.get("key") or ""
-        if key:
-            values[key] = request.form.get("f_" + key, "")
-
-    errors = quicker.validate_fields(fields, values)
-    if errors:
-        return json_ok(ok_push=False, error="；".join(errors), cost=0)
-
-    payload = quicker.build_payload(api, fields, values)
-    result = quicker.push(payload)
-
-    # 试用也记日志，但标记为管理端，用户侧看不到
-    try:
-        params_json = json.dumps(quicker.mask_payload(payload), ensure_ascii=False)
-    except (TypeError, ValueError):
-        params_json = "{}"
-    db.insert(
-        "INSERT INTO api_logs (user_id, user_email, api_id, api_slug, api_name, params_json, "
-        "response_text, is_success, cost_points, refunded, http_status, time_cost_ms, "
-        "error_message, ip, created_at) VALUES (0,%s,%s,%s,%s,%s,%s,%s,0,0,%s,%s,%s,%s,%s)",
-        ("[管理端试用]", api["id"], api["slug"], api["name"], params_json,
-         (result["text"] or "")[:60000], 1 if result["ok"] else 0,
-         result["status"], result["time_cost_ms"], (result["error"] or "")[:500],
-         "[admin]", now_ts()),
-    )
-    db.execute(
-        "UPDATE apis SET call_count = call_count + 1, success_count = success_count + %s WHERE id = %s",
-        (1 if result["ok"] else 0, api["id"]),
-    )
-
-    return json_ok(
-        ok_push=result["ok"],
-        error=result["error"],
-        data=result["response"] if result["response"] else result["text"],
-        raw=(result["text"] or "")[:20000],
-        payload=quicker.mask_payload(payload),
-        time_cost_ms=result["time_cost_ms"],
-        cost=0,
-    )

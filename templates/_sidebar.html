@@ -1,6 +1,6 @@
 <aside class="sidebar">
   <div class="brand">
-    <span class="dot">P</span>
+    <span class="dot">Q</span>
     <span class="truncate">{{ site_name }}</span>
   </div>
 
@@ -36,8 +36,8 @@
   <a href="/admin/cards" class="{{ 'active' if request.path.startswith('/admin/cards') }}">
     <span class="i">▦</span> 卡密批次
   </a>
-  <a href="/admin/try" class="{{ 'active' if request.path.startswith('/admin/try') }}">
-    <span class="i">▷</span> 接口试用
+  <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') }}">
+    <span class="i">≣</span> 全站日志
   </a>
   <a href="/admin/settings" class="{{ 'active' if request.path.startswith('/admin/settings') }}">
     <span class="i">⚙</span> 全局设置
@@ -46,15 +46,17 @@
 
   <div class="spacer"></div>
   <div class="foot">
-    <div class="truncate" style="color:#8b8375">{{ viewer.email if viewer else '' }}</div>
-    {% if viewer %}
-    <div style="color:#e8e2d5;font-weight:700;margin-top:4px">
-      {{ viewer.points }} 积分{% if viewer.is_admin %} · 管理员{% endif %}
+    <div class="foot-mail truncate">{{ viewer.email if viewer else '' }}</div>
+    <div>
+      {% if viewer %}
+      <span class="foot-role">{{ '管理员' if viewer.is_admin else '用户' }}</span>
+      <span class="muted" style="margin-left:6px">{{ viewer.points }} 积分</span>
+      {% endif %}
     </div>
-    {% endif %}
-    <form method="post" action="/logout" style="margin-top:6px">
+    <form method="post" action="/logout" style="margin-top:8px">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-      <button class="btn ghost sm" type="submit" style="color:#b9b1a2;padding-left:0">退出登录</button>
+      <button class="btn ghost sm" type="submit"
+              style="color:#cfc7ba;padding:2px 0;font-size:12px">退出登录</button>
     </form>
   </div>
 </aside>

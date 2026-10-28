@@ -4,10 +4,33 @@
 {% block heading %}卡密充值{% endblock %}
 
 {% block content %}
-<div class="grid cols-3 mb-2">
-  <div class="stat"><div class="label">未使用</div><div class="value">{{ summary.unused }}</div><div class="hint">张可用卡密</div></div>
-  <div class="stat"><div class="label">已使用</div><div class="value">{{ summary.used }}</div><div class="hint">张已被兑换</div></div>
-  <div class="stat"><div class="label">已兑换积分</div><div class="value">{{ summary.points_used }}</div><div class="hint">通过卡密发放</div></div>
+
+<!-- 统计（可点击筛选） -->
+<div class="stat-filter">
+  <a class="stat-card {{ 'on' if not status_filter else '' }}"
+     href="/admin/cards{% if batch %}?batch={{ batch }}{% endif %}">
+    <span class="stat-card-label">全部</span>
+    <span class="stat-card-num">{{ summary.all }}</span>
+  </a>
+  <a class="stat-card {{ 'on' if status_filter == 'unused' else '' }}"
+     href="/admin/cards?status=unused{% if batch %}&batch={{ batch }}{% endif %}">
+    <span class="stat-card-label">未使用</span>
+    <span class="stat-card-num">{{ summary.unused }}</span>
+  </a>
+  <a class="stat-card {{ 'on' if status_filter == 'used' else '' }}"
+     href="/admin/cards?status=used{% if batch %}&batch={{ batch }}{% endif %}">
+    <span class="stat-card-label">已使用</span>
+    <span class="stat-card-num">{{ summary.used }}</span>
+  </a>
+  <a class="stat-card {{ 'on' if status_filter == 'exported' else '' }}"
+     href="/admin/cards?status=exported{% if batch %}&batch={{ batch }}{% endif %}">
+    <span class="stat-card-label">已导出</span>
+    <span class="stat-card-num">{{ summary.exported }}</span>
+  </a>
+  <div class="stat-card plain">
+    <span class="stat-card-label">已兑换积分</span>
+    <span class="stat-card-num">{{ summary.points_used }}</span>
+  </div>
 </div>
 
 <div class="card">
@@ -27,19 +50,15 @@
         <label>卡密前缀</label>
         <input type="text" name="prefix" value="TB" maxlength="16">
       </div>
-      <div class="field" style="margin:0">
-        <label>有效期（天）</label>
-        <input type="number" name="expires_days" value="0" min="0" max="3650">
-        <div class="help">0 = 永不过期</div>
-      </div>
-      <div class="field" style="margin:0">
+      <div class="field" style="margin:0;flex:2">
         <label>备注</label>
-        <input type="text" name="note" maxlength="200" placeholder="可选">
+        <input type="text" name="note" maxlength="200" placeholder="可选，便于以后筛选">
       </div>
       <div style="flex:0 0 auto">
         <button class="btn primary" type="submit">生成</button>
       </div>
     </form>
+    <div class="muted small mt-1">生成的卡密永久有效，不会过期。</div>
   </div>
 </div>
 
@@ -61,7 +80,7 @@
           <td class="hide-sm muted small">{{ b.created_at | ts }}</td>
           <td class="nowrap">
             <a class="btn sm" href="/admin/cards?batch={{ b.batch }}">查看</a>
-            <a class="btn sm" href="/admin/cards/export?batch={{ b.batch }}">导出全部</a>
+            <a class="btn sm" href="/admin/cards/export?batch={{ b.batch }}">导出</a>
           </td>
         </tr>
         {% endfor %}
@@ -71,58 +90,130 @@
 </div>
 {% endif %}
 
+<!-- 筛选 -->
+<form method="get" action="/admin/cards" class="card">
+  <div class="body" style="padding:14px 18px">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>搜索卡密</label>
+        <input type="search" name="q" value="{{ keyword }}" placeholder="输入卡密片段">
+      </div>
+      <div class="filter-item">
+        <label>状态</label>
+        <select name="status">
+          <option value="">全部</option>
+          <option value="unused" {{ 'selected' if status_filter == 'unused' }}>未使用</option>
+          <option value="used" {{ 'selected' if status_filter == 'used' }}>已使用</option>
+          <option value="exported" {{ 'selected' if status_filter == 'exported' }}>已导出</option>
+        </select>
+      </div>
+      {% if batch %}<input type="hidden" name="batch" value="{{ batch }}">{% endif %}
+      <button class="btn primary" type="submit">筛选</button>
+      <a class="btn ghost" href="/admin/cards">重置</a>
+      <span class="ml-auto muted small">共 {{ total }} 张</span>
+    </div>
+    {% if batch %}
+    <div class="alert info small" style="margin:10px 0 0">
+      <span>当前只看批次 <b>{{ batch }}</b></span>
+      <a href="/admin/cards" style="margin-left:auto">看全部 →</a>
+    </div>
+    {% endif %}
+  </div>
+</form>
+
 <div class="card">
   <div class="head">
-    <h2>{% if batch %}批次 {{ batch }}{% else %}全部卡密{% endif %}（{{ total }}）</h2>
+    <h2>卡密列表</h2>
     <div class="actions">
-      <a class="btn sm" href="/admin/cards/export{% if batch %}?batch={{ batch }}{% endif %}">导出txt</a>
-      {% if batch %}<a class="btn sm ghost" href="/admin/cards">显示全部</a>{% endif %}
+      <button class="btn sm danger" type="submit" form="batchForm"
+              data-confirm="确定删除选中的未使用卡密吗？已使用的会被保留。">删除选中</button>
+      <button class="btn sm" type="button" id="btnDeleteFiltered"
+              data-confirm="按当前筛选条件删除所有「未使用」卡密，确定继续？">删除筛选结果</button>
+      <a class="btn sm" href="/admin/cards/export{% if batch %}?batch={{ batch }}{% else %}?status=unused{% endif %}">导出未使用</a>
     </div>
   </div>
   <div class="body flush">
-    {% if cards %}
-    <table>
-      <thead>
-        <tr><th>卡密</th><th class="num">积分</th><th>状态</th><th class="hide-sm">使用者</th><th class="hide-sm">兑换时间</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for c in cards %}
-        <tr>
-          <td>
-            <span class="mono" style="font-size:12.5px">{{ c.code }}</span>
-            <button class="btn sm ghost" type="button" data-copy="{{ c.code }}" data-copy-message="卡密已复制">复制</button>
-          </td>
-          <td class="num">{{ c.points }}</td>
-          <td>
-            {% if c.status %}<span class="badge">已使用</span>
-            {% elif c.expires_at and c.expires_at < now_ts() %}<span class="badge fail">已过期</span>
-            {% else %}<span class="badge ok">可用</span>{% endif %}
-          </td>
-          <td class="hide-sm small truncate" style="max-width:180px">{{ c.used_by_email or '-' }}</td>
-          <td class="hide-sm muted small nowrap">{{ c.used_at | ts if c.used_at else '-' }}</td>
-          <td class="nowrap">
-            {% if not c.status %}
-            <form method="post" action="/admin/cards/{{ c.id }}/delete" style="display:inline" data-confirm="删除这张卡密？">
-              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-              <button class="btn sm danger" type="submit">删除</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div class="empty"><div class="big">▦</div>还没有卡密，用上面的表单生成一批吧</div>
-    {% endif %}
+    <form id="batchForm" method="post" action="/admin/cards/batch-delete">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      {% if cards %}
+      <table>
+        <thead>
+          <tr>
+            <th style="width:34px"><input type="checkbox" id="checkAll"></th>
+            <th>卡密</th>
+            <th class="num">积分</th>
+            <th>状态</th>
+            <th class="hide-sm">使用者</th>
+            <th class="hide-sm">兑换时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in cards %}
+          <tr>
+            <td><input type="checkbox" name="ids" value="{{ c.id }}" class="row-check"></td>
+            <td>
+              <span class="mono" style="font-size:12.5px">{{ c.code }}</span>
+              <button class="btn sm ghost" type="button" data-copy="{{ c.code }}"
+                      data-copy-message="卡密已复制">复制</button>
+            </td>
+            <td class="num">{{ c.points }}</td>
+            <td>
+              {% if c.status %}<span class="badge">已使用</span>
+              {% else %}<span class="badge ok">可用</span>{% endif %}
+              {% if c.exported %}<span class="badge info">已导出</span>{% endif %}
+            </td>
+            <td class="hide-sm small truncate" style="max-width:180px">{{ c.used_by_email or '-' }}</td>
+            <td class="hide-sm muted small nowrap">{{ c.used_at | ts if c.used_at else '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><div class="big">▦</div>
+        {% if keyword or status_filter %}没有符合筛选条件的卡密{% else %}还没有卡密，用上面的表单生成一批吧{% endif %}
+      </div>
+      {% endif %}
+    </form>
   </div>
   {% if pages > 1 %}
   <div class="pager">
-    <a class="{{ 'disabled' if page <= 1 }}" href="?page={{ page - 1 }}&batch={{ batch }}">上一页</a>
+    <a class="{{ 'disabled' if page <= 1 }}"
+       href="?page={{ page - 1 }}&batch={{ batch }}&q={{ keyword }}&status={{ status_filter }}">上一页</a>
     <span class="current">{{ page }}</span>
-    <a class="{{ 'disabled' if page >= pages }}" href="?page={{ page + 1 }}&batch={{ batch }}">下一页</a>
+    <a class="{{ 'disabled' if page >= pages }}"
+       href="?page={{ page + 1 }}&batch={{ batch }}&q={{ keyword }}&status={{ status_filter }}">下一页</a>
     <span class="info">第 {{ page }} / {{ pages }} 页</span>
   </div>
   {% endif %}
 </div>
+
+<form id="filteredForm" method="post" action="/admin/cards/batch-delete-filtered" style="display:none">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="batch" value="{{ batch }}">
+  <input type="hidden" name="q" value="{{ keyword }}">
+  <input type="hidden" name="status" value="{{ status_filter }}">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const all = document.getElementById('checkAll');
+  const rows = Array.from(document.querySelectorAll('.row-check'));
+
+  if (all) {
+    all.addEventListener('change', function () {
+      rows.forEach(function (r) { r.checked = all.checked; });
+    });
+  }
+
+  const btnFiltered = document.getElementById('btnDeleteFiltered');
+  if (btnFiltered) {
+    btnFiltered.addEventListener('click', function () {
+      if (!window.confirm(btnFiltered.getAttribute('data-confirm'))) return;
+      document.getElementById('filteredForm').submit();
+    });
+  }
+})();
+</script>
 {% endblock %}

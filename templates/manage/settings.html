@@ -39,10 +39,8 @@
         </div>
         <div class="field">
           <label>code · 推送验证码 <span class="req">*</span></label>
-          <div class="row tight">
-            <input type="text" name="code" id="pushCode" value="{{ groups.quicker.code }}" placeholder="Quicker 会员中心里设置的推送验证码">
-            <button class="btn sm" type="button" style="flex:0 0 auto" data-toggle-password="#pushCode">显示</button>
-          </div>
+          <input type="password" name="code" id="pushCode" value="{{ groups.quicker.code }}"
+                 autocomplete="off" placeholder="Quicker 会员中心里设置的推送验证码">
           <div class="help">在 Quicker 会员中心 → 推送设置 里生成</div>
         </div>
       </div>
