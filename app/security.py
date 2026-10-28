@@ -127,11 +127,60 @@ def current_user():
     return g.user
 
 
+def current_viewer():
+    """当前能浏览用户中心的登录者：普通用户，或管理员（管理视角）。
+
+    两者共用同一套 /u/* 页面，用 "kind" 区分身份：
+        {"kind": "user", "id", "email", "nickname", "points", "api_key", "created_at"}
+        {"kind": "admin", "id", "email", "name"}   ← 没有积分和 API Key
+
+    这样用户中心不必复制一份，管理员也能直接看接口列表、调用日志。
+    """
+    if "viewer" in g:
+        return g.viewer
+
+    user = current_user()
+    if user is not None:
+        g.viewer = {
+            "kind": "user",
+            "id": user["id"],
+            "email": user["email"],
+            "nickname": user.get("nickname") or "",
+            "points": int(user.get("points") or 0),
+            "api_key": user.get("api_key") or "",
+            "created_at": user.get("created_at") or 0,
+        }
+        return g.viewer
+
+    admin = current_admin()
+    if admin is not None:
+        g.viewer = {
+            "kind": "admin",
+            "id": admin["id"],
+            "email": admin["email"],
+            "name": admin.get("name") or "",
+            "nickname": admin.get("name") or "",
+            # 管理员没有积分与 API Key，明确置空，避免模板里误用
+            "points": None,
+            "api_key": "",
+            "created_at": admin.get("created_at") or 0,
+        }
+        return g.viewer
+
+    g.viewer = None
+    return None
+
+
+def viewer_is_admin(viewer) -> bool:
+    return bool(viewer) and viewer.get("kind") == "admin"
+
+
 def login_admin(admin_id: int) -> None:
     session.clear()
     session["admin_id"] = int(admin_id)
     session.permanent = True
     g.pop("admin", None)
+    g.pop("viewer", None)
 
 
 def login_user(user_id: int) -> None:
@@ -139,12 +188,14 @@ def login_user(user_id: int) -> None:
     session["user_id"] = int(user_id)
     session.permanent = True
     g.pop("user", None)
+    g.pop("viewer", None)
 
 
 def logout_all() -> None:
     session.clear()
     g.pop("admin", None)
     g.pop("user", None)
+    g.pop("viewer", None)
 
 
 # ───────────────────────── 装饰器 ─────────────────────────
@@ -176,6 +227,20 @@ def user_required(view):
             if _wants_json():
                 return jsonify({"ok": False, "error": {"code": "unauthorized", "message": "请先登录"}}), 401
             return redirect(url_for("auth.user_login", next=request.full_path))
+        return view(*args, **kwargs)
+
+    return wrapper
+
+
+def viewer_required(view):
+    """用户中心用：普通用户或管理员都可以访问（管理员是管理视角）。"""
+
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if current_viewer() is None:
+            if _wants_json():
+                return jsonify({"ok": False, "error": {"code": "unauthorized", "message": "请先登录"}}), 401
+            return redirect(url_for("auth.login", next=request.full_path))
         return view(*args, **kwargs)
 
     return wrapper

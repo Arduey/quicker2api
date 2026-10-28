@@ -19,7 +19,7 @@ def guard(view):
     from functools import wraps
 
     @wraps(view)
-    @security.user_required
+    @security.viewer_required
     def wrapper(*a, **kw):
         if request.method in ("POST", "PUT", "DELETE") and not csrf_valid():
             if request.path.startswith("/u/api/"):
@@ -36,35 +36,58 @@ def guard(view):
 @bp.get("/u/")
 @guard
 def dashboard():
-    user = security.current_user()
+    viewer = security.current_viewer()
     db = get_db()
-    stats = {
-        "calls": db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (user["id"],)),
-        "calls_today": db.scalar(
-            "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND created_at >= %s",
-            (user["id"], now_ts() - 86400),
-        ),
-        "spent": db.scalar(
-            "SELECT COALESCE(SUM(cost_points),0) AS c FROM api_logs WHERE user_id = %s AND refunded = 0",
-            (user["id"],),
-        ),
-        "success_rate": 0,
-    }
-    total = stats["calls"]
-    if total:
-        ok_count = db.scalar(
-            "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND is_success = 1", (user["id"],)
-        )
-        stats["success_rate"] = round(ok_count * 100.0 / total, 1)
+    is_admin = security.viewer_is_admin(viewer)
 
-    recent = db.query(
-        "SELECT id, api_name, api_slug, is_success, cost_points, refunded, time_cost_ms, created_at "
-        "FROM api_logs WHERE user_id = %s ORDER BY id DESC LIMIT 8",
-        (user["id"],),
-    )
+    if is_admin:
+        # 管理员是管理视角：不查个人积分，改看全站概况
+        stats = {
+            "calls": db.scalar("SELECT COUNT(*) AS c FROM api_logs"),
+            "calls_today": db.scalar(
+                "SELECT COUNT(*) AS c FROM api_logs WHERE created_at >= %s", (now_ts() - 86400,)),
+            "spent": db.scalar(
+                "SELECT COALESCE(SUM(cost_points),0) AS c FROM api_logs WHERE refunded = 0"),
+            "success_rate": 0,
+        }
+        total = stats["calls"]
+        if total:
+            ok_count = db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE is_success = 1")
+            stats["success_rate"] = round(ok_count * 100.0 / total, 1)
+        recent = db.query(
+            "SELECT id, user_email, api_name, api_slug, is_success, cost_points, refunded, "
+            "time_cost_ms, created_at FROM api_logs ORDER BY id DESC LIMIT 8"
+        )
+    else:
+        stats = {
+            "calls": db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (viewer["id"],)),
+            "calls_today": db.scalar(
+                "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND created_at >= %s",
+                (viewer["id"], now_ts() - 86400),
+            ),
+            "spent": db.scalar(
+                "SELECT COALESCE(SUM(cost_points),0) AS c FROM api_logs "
+                "WHERE user_id = %s AND refunded = 0",
+                (viewer["id"],),
+            ),
+            "success_rate": 0,
+        }
+        total = stats["calls"]
+        if total:
+            ok_count = db.scalar(
+                "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND is_success = 1",
+                (viewer["id"],),
+            )
+            stats["success_rate"] = round(ok_count * 100.0 / total, 1)
+        recent = db.query(
+            "SELECT id, api_name, api_slug, is_success, cost_points, refunded, time_cost_ms, created_at "
+            "FROM api_logs WHERE user_id = %s ORDER BY id DESC LIMIT 8",
+            (viewer["id"],),
+        )
+
     apis = _visible_apis(db)
-    return render_template("portal/dashboard.html", user=user, stats=stats,
-                           recent=recent, apis=apis)
+    return render_template("portal/dashboard.html", viewer=viewer, user=viewer, is_admin=is_admin,
+                           stats=stats, recent=recent, apis=apis)
 
 
 def _visible_apis(db) -> list[dict]:
@@ -88,15 +111,17 @@ def _visible_apis(db) -> list[dict]:
 @bp.get("/u/apis")
 @guard
 def api_list():
-    user = security.current_user()
+    viewer = security.current_viewer()
     db = get_db()
-    return render_template("portal/apis.html", user=user, apis=_visible_apis(db))
+    return render_template("portal/apis.html", viewer=viewer, user=viewer,
+                           is_admin=security.viewer_is_admin(viewer),
+                           apis=_visible_apis(db))
 
 
 @bp.get("/u/apis/<slug>")
 @guard
 def api_detail(slug: str):
-    user = security.current_user()
+    viewer = security.current_viewer()
     db = get_db()
     row = db.query_one("SELECT * FROM apis WHERE slug = %s AND status = 1", (slug,))
     if row is None:
@@ -108,8 +133,9 @@ def api_detail(slug: str):
         fields = []
     base = (request.url_root or "").rstrip("/")
     endpoint = base + "/api/v1/" + row["slug"]
-    return render_template("portal/api_detail.html", user=user, api=row, fields=fields,
-                           base=base, endpoint=endpoint)
+    return render_template("portal/api_detail.html", viewer=viewer, user=viewer,
+                           is_admin=security.viewer_is_admin(viewer),
+                           api=row, fields=fields, base=base, endpoint=endpoint)
 
 
 @bp.post("/u/api/playground")
@@ -118,7 +144,11 @@ def api_playground():
     """在线调试：真正走一次调用（会扣积分），方便用户确认参数。"""
     from .api_v1 import execute_call
 
-    user = security.current_user()
+    viewer = security.current_viewer()
+    if security.viewer_is_admin(viewer):
+        return json_err("管理员没有积分账户，无法在线调试。请用普通账号测试，或到后台 API 列表使用测试推送。",
+                        "admin_not_allowed", 403)
+
     db = get_db()
     slug = text(request.form.get("slug"), 64)
     api = db.query_one("SELECT * FROM apis WHERE slug = %s AND status = 1", (slug,))
@@ -136,7 +166,7 @@ def api_playground():
         if key:
             values[key] = request.form.get("f_" + key, "")
 
-    result = execute_call(user, api, fields, values, ip=client_ip())
+    result = execute_call(viewer, api, fields, values, ip=client_ip())
     return jsonify(result)
 
 
@@ -144,28 +174,45 @@ def api_playground():
 @bp.get("/u/logs")
 @guard
 def log_list():
-    user = security.current_user()
+    viewer = security.current_viewer()
     db = get_db()
+    is_admin = security.viewer_is_admin(viewer)
     page = max(1, to_int(request.args.get("page"), 1, 1))
     per_page = 20
-    total = db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (user["id"],))
-    rows = db.query(
-        "SELECT id, api_name, api_slug, is_success, cost_points, refunded, http_status, "
-        "time_cost_ms, error_message, created_at FROM api_logs WHERE user_id = %s "
-        "ORDER BY id DESC LIMIT %s OFFSET %s",
-        (user["id"], per_page, (page - 1) * per_page),
-    )
+
+    if is_admin:
+        total = db.scalar("SELECT COUNT(*) AS c FROM api_logs")
+        rows = db.query(
+            "SELECT id, user_email, api_name, api_slug, is_success, cost_points, refunded, "
+            "http_status, time_cost_ms, error_message, created_at FROM api_logs "
+            "ORDER BY id DESC LIMIT %s OFFSET %s",
+            (per_page, (page - 1) * per_page),
+        )
+    else:
+        total = db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (viewer["id"],))
+        rows = db.query(
+            "SELECT id, api_name, api_slug, is_success, cost_points, refunded, http_status, "
+            "time_cost_ms, error_message, created_at FROM api_logs WHERE user_id = %s "
+            "ORDER BY id DESC LIMIT %s OFFSET %s",
+            (viewer["id"], per_page, (page - 1) * per_page),
+        )
+
     pages = max(1, (int(total) + per_page - 1) // per_page)
-    return render_template("portal/logs.html", user=user, logs=rows,
+    return render_template("portal/logs.html", viewer=viewer, user=viewer,
+                           is_admin=is_admin, logs=rows,
                            page=page, pages=pages, total=total)
 
 
 @bp.get("/u/logs/<int:log_id>")
 @guard
 def log_detail(log_id: int):
-    user = security.current_user()
+    viewer = security.current_viewer()
     db = get_db()
-    row = db.query_one("SELECT * FROM api_logs WHERE id = %s AND user_id = %s", (log_id, user["id"]))
+    if security.viewer_is_admin(viewer):
+        row = db.query_one("SELECT * FROM api_logs WHERE id = %s", (log_id,))
+    else:
+        row = db.query_one("SELECT * FROM api_logs WHERE id = %s AND user_id = %s",
+                           (log_id, viewer["id"]))
     if row is None:
         flash("记录不存在", "error")
         return redirect(url_for("portal.log_list"))
@@ -176,7 +223,8 @@ def log_detail(log_id: int):
         except (TypeError, ValueError):
             return raw or ""
 
-    return render_template("portal/log_detail.html", user=user, log=row,
+    return render_template("portal/log_detail.html", viewer=viewer, user=viewer,
+                           is_admin=security.viewer_is_admin(viewer), log=row,
                            params_pretty=pretty(row["params_json"]),
                            response_pretty=pretty(row["response_text"]))
 
@@ -185,19 +233,28 @@ def log_detail(log_id: int):
 @bp.get("/u/redeem")
 @guard
 def redeem():
-    user = security.current_user()
+    viewer = security.current_viewer()
+    is_admin = security.viewer_is_admin(viewer)
     db = get_db()
-    history = db.query(
-        "SELECT code, points, used_at FROM redeem_codes WHERE used_by = %s ORDER BY used_at DESC LIMIT 30",
-        (user["id"],),
-    )
-    return render_template("portal/redeem.html", user=user, history=history)
+    history = []
+    if not is_admin:
+        history = db.query(
+            "SELECT code, points, used_at FROM redeem_codes WHERE used_by = %s "
+            "ORDER BY used_at DESC LIMIT 30",
+            (viewer["id"],),
+        )
+    return render_template("portal/redeem.html", viewer=viewer, user=viewer,
+                           is_admin=is_admin, history=history)
 
 
 @bp.post("/u/redeem")
 @guard
 def redeem_post():
-    user = security.current_user()
+    viewer = security.current_viewer()
+    if security.viewer_is_admin(viewer):
+        flash("管理员没有积分账户，无需兑换卡密", "error")
+        return redirect(url_for("portal.redeem"))
+
     db = get_db()
     code = text(request.form.get("code"), 64).upper().replace(" ", "")
     if not code:
@@ -217,11 +274,11 @@ def redeem_post():
                 conn,
                 "UPDATE redeem_codes SET status = 1, used_by = %s, used_by_email = %s, used_at = %s "
                 "WHERE id = %s AND status = 0",
-                (user["id"], user["email"], now_ts(), row["id"]),
+                (viewer["id"], viewer["email"], now_ts(), row["id"]),
             )
             if affected:
                 db.tx_execute(conn, "UPDATE users SET points = points + %s WHERE id = %s",
-                              (int(row["points"]), user["id"]))
+                              (int(row["points"]), viewer["id"]))
         if affected:
             flash("兑换成功，获得 %d 积分" % int(row["points"]), "success")
         else:
@@ -233,20 +290,25 @@ def redeem_post():
 @bp.get("/u/profile")
 @guard
 def profile():
-    user = security.current_user()
-    return render_template("portal/profile.html", user=user)
+    viewer = security.current_viewer()
+    return render_template("portal/profile.html", viewer=viewer, user=viewer,
+                           is_admin=security.viewer_is_admin(viewer))
 
 
 @bp.post("/u/profile/password")
 @guard
 def change_password():
-    user = security.current_user()
+    viewer = security.current_viewer()
+    if security.viewer_is_admin(viewer):
+        flash("管理员请在后台设置里修改密码", "error")
+        return redirect(url_for("portal.profile"))
+
     db = get_db()
     old = request.form.get("old_password") or ""
     new = request.form.get("new_password") or ""
     new2 = request.form.get("new_password2") or ""
 
-    row = db.query_one("SELECT password_hash FROM users WHERE id = %s", (user["id"],))
+    row = db.query_one("SELECT password_hash FROM users WHERE id = %s", (viewer["id"],))
     if not security.verify_password(row["password_hash"], old):
         flash("原密码错误", "error")
     elif security.password_problem(new):
@@ -255,7 +317,7 @@ def change_password():
         flash("两次输入的新密码不一致", "error")
     else:
         db.execute("UPDATE users SET password_hash = %s WHERE id = %s",
-                   (security.hash_password(new), user["id"]))
+                   (security.hash_password(new), viewer["id"]))
         flash("密码已更新", "success")
     return redirect(url_for("portal.profile"))
 
@@ -263,9 +325,13 @@ def change_password():
 @bp.post("/u/profile/reset-key")
 @guard
 def reset_key():
-    user = security.current_user()
+    viewer = security.current_viewer()
+    if security.viewer_is_admin(viewer):
+        flash("管理员没有 API Key", "error")
+        return redirect(url_for("portal.profile"))
+
     db = get_db()
     db.execute("UPDATE users SET api_key = %s WHERE id = %s",
-               (security.new_api_key(), user["id"]))
+               (security.new_api_key(), viewer["id"]))
     flash("API Key 已重置，旧 Key 立即失效", "success")
     return redirect(url_for("portal.profile"))

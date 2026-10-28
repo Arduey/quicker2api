@@ -4,7 +4,12 @@
     <span class="truncate">{{ site_name }}</span>
   </div>
 
-  <div class="nav-label">我的</div>
+  {% if is_admin_view %}
+  <div class="nav-label">管理</div>
+  <a href="/admin"><span class="i">⚙</span> 管理控制台</a>
+  {% endif %}
+
+  <div class="nav-label">{{ '浏览' if is_admin_view else '我的' }}</div>
   <a href="/u" class="{{ 'active' if request.path in ['/u', '/u/'] }}">
     <span class="i">◉</span> 概览
   </a>
@@ -12,11 +17,13 @@
     <span class="i">⌘</span> 可用接口
   </a>
   <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
-    <span class="i">≣</span> 调用记录
+    <span class="i">≣</span> {{ '全站日志' if is_admin_view else '调用记录' }}
   </a>
+  {% if not is_admin_view %}
   <a href="/u/redeem" class="{{ 'active' if request.path.startswith('/u/redeem') }}">
     <span class="i">▦</span> 卡密兑换
   </a>
+  {% endif %}
 
   <div class="nav-label">账号</div>
   <a href="/u/profile" class="{{ 'active' if request.path.startswith('/u/profile') }}">
@@ -25,8 +32,12 @@
 
   <div class="spacer"></div>
   <div class="foot">
-    <div class="truncate" style="color:#8b8375">{{ current_user.email }}</div>
-    <div style="color:#e8e2d5;font-weight:700;margin-top:4px">{{ current_user.points }} 积分</div>
+    <div class="truncate" style="color:#8b8375">{{ viewer.email }}</div>
+    {% if is_admin_view %}
+    <div style="color:#e8e2d5;font-weight:700;margin-top:4px">管理员</div>
+    {% else %}
+    <div style="color:#e8e2d5;font-weight:700;margin-top:4px">{{ viewer.points }} 积分</div>
+    {% endif %}
     <form method="post" action="/logout" style="margin-top:6px">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <button class="btn ghost sm" type="submit" style="color:#b9b1a2;padding-left:0">退出登录</button>

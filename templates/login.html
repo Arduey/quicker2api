@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ '管理后台登录' if mode == 'admin' else '登录' }} · {{ site_name }}</title>
+<title>登录 · {{ site_name }}</title>
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
@@ -15,8 +15,8 @@
       <div class="name">{{ site_name }}</div>
     </div>
 
-    <h1>{{ '管理员登录' if mode == 'admin' else '登录你的账号' }}</h1>
-    <p class="lead">{{ '仅限站点管理员访问' if mode == 'admin' else '用注册邮箱和密码登录' }}</p>
+    <h1>登录</h1>
+    <p class="lead">用邮箱和密码登录，管理员会自动进入控制台</p>
 
     {% if error %}
     <div class="alert error"><span>{{ error }}</span></div>
@@ -26,12 +26,14 @@
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <div class="field">
         <label>邮箱</label>
-        <input type="email" name="email" value="{{ email }}" required autofocus autocomplete="username" placeholder="you@example.com">
+        <input type="email" name="email" value="{{ email }}" required autofocus
+               autocomplete="username" placeholder="you@example.com">
       </div>
       <div class="field">
         <label>密码</label>
         <div class="row tight">
-          <input type="password" name="password" id="pwd" required autocomplete="current-password" placeholder="••••••••">
+          <input type="password" name="password" id="pwd" required
+                 autocomplete="current-password" placeholder="••••••••">
           <button class="btn sm" type="button" style="flex:0 0 auto" data-toggle-password="#pwd">显示</button>
         </div>
       </div>
@@ -39,13 +41,8 @@
     </form>
 
     <div class="bottom">
-      {% if mode == 'admin' %}
-        <a href="/login">用户登录入口</a>
-      {% else %}
-        还没有账号？<a href="/register">立即注册</a>
-        &nbsp;·&nbsp;<a href="/reset-password">忘记密码</a>
-        &nbsp;·&nbsp;<a href="/admin/login">管理员入口</a>
-      {% endif %}
+      还没有账号？<a href="/register">立即注册</a>
+      &nbsp;·&nbsp;<a href="/reset-password">忘记密码</a>
     </div>
   </div>
 </div>

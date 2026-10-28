@@ -302,7 +302,7 @@ def api_run():
         "message": "安装完成",
         "tables": table_count,
         "admin_email": admin_email,
-        "login_url": "/admin/login",
+        "login_url": "/login",
     })
 
 

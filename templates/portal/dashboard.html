@@ -3,16 +3,31 @@
 {% block sidebar %}{% include "portal/_sidebar.html" %}{% endblock %}
 {% block heading %}概览{% endblock %}
 {% block topbar_right %}
-<a class="btn sm" href="/u/redeem">兑换卡密</a>
+{% if not is_admin_view %}<a class="btn sm" href="/u/redeem">兑换卡密</a>
+{% else %}<a class="btn sm" href="/admin">管理控制台</a>{% endif %}
 {% endblock %}
 
 {% block content %}
+{% if is_admin_view %}
+<div class="alert info small">
+  <span>管理视角：以下是全站数据。管理员没有个人积分与 API Key，调用统计请到「全站日志」查看。</span>
+</div>
+{% endif %}
+
 <div class="grid cols-4 mb-2">
+  {% if is_admin_view %}
+  <div class="stat brand">
+    <div class="label">全站调用</div>
+    <div class="value">{{ stats.calls }}</div>
+    <div class="hint">近 24h +{{ stats.calls_today }}</div>
+  </div>
+  {% else %}
   <div class="stat brand">
     <div class="label">我的积分</div>
-    <div class="value">{{ user.points }}</div>
+    <div class="value">{{ viewer.points }}</div>
     <div class="hint">调用接口时扣除</div>
   </div>
+  {% endif %}
   <div class="stat">
     <div class="label">今日调用</div>
     <div class="value">{{ stats.calls_today }}</div>
@@ -21,7 +36,7 @@
   <div class="stat">
     <div class="label">成功率</div>
     <div class="value">{{ stats.success_rate }}%</div>
-    <div class="hint">失败自动退回积分</div>
+    <div class="hint">{{ '全站统计' if is_admin_view else '失败自动退回积分' }}</div>
   </div>
   <div class="stat">
     <div class="label">累计消耗</div>
@@ -30,6 +45,7 @@
   </div>
 </div>
 
+{% if not is_admin_view %}
 <div class="card">
   <div class="head">
     <h2>你的 API Key</h2>
@@ -37,12 +53,13 @@
   </div>
   <div class="body">
     <div class="row tight">
-      <input type="text" id="apiKeyBox" value="{{ user.api_key }}" readonly>
+      <input type="text" id="apiKeyBox" value="{{ viewer.api_key }}" readonly>
       <button class="btn" type="button" data-copy-from="#apiKeyBox" data-copy-message="API Key 已复制" style="flex:0 0 auto">复制</button>
     </div>
     <div class="help mt-1">调用时放在请求头：<span class="inline-code">Authorization: Bearer &lt;API Key&gt;</span> 或 <span class="inline-code">X-API-Key: &lt;API Key&gt;</span></div>
   </div>
 </div>
+{% endif %}
 
 <div class="card">
   <div class="head">

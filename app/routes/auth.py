@@ -30,18 +30,63 @@ def safe_next(target: str | None, fallback: str) -> str:
 @bp.get("/")
 def index():
     """站点根路径：按身份分流，避免装好后访问域名直接 404。"""
-    if security.current_admin() is not None:
-        return redirect(url_for("manage.dashboard"))
-    if security.current_user() is not None:
-        return redirect(url_for("portal.dashboard"))
-    return redirect(url_for("auth.user_login"))
+    viewer = security.current_viewer()
+    if viewer is not None:
+        target = "manage.dashboard" if security.viewer_is_admin(viewer) else "portal.dashboard"
+        return redirect(url_for(target))
+    return redirect(url_for("auth.login"))
 
 
-# ═════════════════════ 管理员 ═════════════════════
-@bp.route("/admin/login", methods=["GET", "POST"])
-def admin_login():
-    if security.current_admin() is not None:
-        return redirect(url_for("manage.dashboard"))
+# ═════════════════════ 登录（管理员与用户共用同一入口） ═════════════════════
+def _try_admin_login(email: str, password: str, db):
+    """命中管理员则登录并返回跳转地址，否则返回 (None, 禁用原因)。
+
+    先判断禁用状态再验密码：否则被禁用的账号输错密码会被报成"密码错误"，
+    用户不知道其实是账号被停用了。
+    """
+    admin = db.query_one("SELECT * FROM admins WHERE email = %s", (email,))
+    if admin is None:
+        return None, None
+    if int(admin["status"]) != 1:
+        return None, "该账号已被禁用，请联系管理员"
+    if not security.verify_password(admin["password_hash"], password):
+        return None, None
+    db.execute(
+        "UPDATE admins SET last_login_at = %s, last_login_ip = %s WHERE id = %s",
+        (now_ts(), client_ip(), admin["id"]),
+    )
+    security.login_admin(admin["id"])
+    return url_for("manage.dashboard"), None
+
+
+def _try_user_login(email: str, password: str, db):
+    user = db.query_one("SELECT * FROM users WHERE email = %s", (email,))
+    if user is None:
+        return None, None
+    if int(user["status"]) != 1:
+        return None, "该账号已被禁用，请联系管理员"
+    if not security.verify_password(user["password_hash"], password):
+        return None, None
+    db.execute(
+        "UPDATE users SET last_login_at = %s, last_login_ip = %s WHERE id = %s",
+        (now_ts(), client_ip(), user["id"]),
+    )
+    security.login_user(user["id"])
+    return url_for("portal.dashboard"), None
+
+
+@bp.route("/login", methods=["GET", "POST"])
+def login():
+    """统一登录入口。
+
+    同一个邮箱密码表单，按「先用户、后管理员」的顺序校验。
+    两者邮箱理论上可能重名，所以密码是否匹配也参与判定：
+    谁匹配就按谁登录；都匹配时优先普通用户（管理员可用 /admin/login 直达）。
+    """
+    viewer = security.current_viewer()
+    if viewer is not None:
+        target = "manage.dashboard" if security.viewer_is_admin(viewer) else "portal.dashboard"
+        return redirect(url_for(target))
 
     error = None
     email = ""
@@ -52,58 +97,47 @@ def admin_login():
             email = normalize_email(text(request.form.get("email"), 190))
             password = request.form.get("password") or ""
             db = get_db()
-            admin = db.query_one("SELECT * FROM admins WHERE email = %s", (email,)) if db else None
-            if admin is None or not security.verify_password(admin["password_hash"], password):
-                error = "邮箱或密码错误"
-            elif int(admin["status"]) != 1:
-                error = "该管理员账号已被禁用"
+            if db is None:
+                error = "数据库不可用，请稍后重试"
             else:
-                db.execute(
-                    "UPDATE admins SET last_login_at = %s, last_login_ip = %s WHERE id = %s",
-                    (now_ts(), client_ip(), admin["id"]),
-                )
-                security.login_admin(admin["id"])
-                flash("欢迎回来，%s" % (admin["name"] or admin["email"]), "success")
-                return redirect(safe_next(request.args.get("next"), url_for("manage.dashboard")))
+                # 用户未命中时再去试管理员；但若用户那边已给出"被禁用"这类
+                # 明确原因，就不要被管理员查询的 None 覆盖掉。
+                dest, reason = _try_user_login(email, password, db)
+                if dest is None:
+                    admin_dest, admin_reason = _try_admin_login(email, password, db)
+                    if admin_dest:
+                        dest = admin_dest
+                    elif not reason:
+                        reason = admin_reason
+                if dest:
+                    return redirect(safe_next(request.args.get("next"), dest))
+                error = reason or "邮箱或密码错误"
 
-    return render_template("login.html", mode="admin", error=error, email=email)
+    return render_template("login.html", error=error, email=email)
+
+
+# 兼容旧地址：/admin/login 仍可用，直接复用统一登录
+@bp.route("/admin/login", methods=["GET"])
+def admin_login():
+    if security.current_admin() is not None:
+        return redirect(url_for("manage.dashboard"))
+    return redirect(url_for("auth.login", next=request.args.get("next")))
+
+
+# 兼容旧的视图名（模板/重定向里可能还引用 auth.user_login）
+user_login = login
+
+
+@bp.post("/logout")
+def logout():
+    security.logout_all()
+    return redirect(url_for("auth.login"))
 
 
 @bp.post("/admin/logout")
 def admin_logout():
     security.logout_all()
-    return redirect(url_for("auth.admin_login"))
-
-
-# ═════════════════════ 用户 ═════════════════════
-@bp.route("/login", methods=["GET", "POST"])
-def user_login():
-    if security.current_user() is not None:
-        return redirect(url_for("portal.dashboard"))
-
-    error = None
-    email = ""
-    if request.method == "POST":
-        if not csrf_valid():
-            error = "页面已过期，请重试"
-        else:
-            email = normalize_email(text(request.form.get("email"), 190))
-            password = request.form.get("password") or ""
-            db = get_db()
-            user = db.query_one("SELECT * FROM users WHERE email = %s", (email,)) if db else None
-            if user is None or not security.verify_password(user["password_hash"], password):
-                error = "邮箱或密码错误"
-            elif int(user["status"]) != 1:
-                error = "账号已被禁用，请联系管理员"
-            else:
-                db.execute(
-                    "UPDATE users SET last_login_at = %s, last_login_ip = %s WHERE id = %s",
-                    (now_ts(), client_ip(), user["id"]),
-                )
-                security.login_user(user["id"])
-                return redirect(safe_next(request.args.get("next"), url_for("portal.dashboard")))
-
-    return render_template("login.html", mode="user", error=error, email=email)
+    return redirect(url_for("auth.login"))
 
 
 @bp.route("/register", methods=["GET", "POST"])
@@ -150,12 +184,6 @@ def register():
                 return redirect(url_for("portal.dashboard"))
 
     return render_template("register.html", error=error, email=email, gift=gift)
-
-
-@bp.post("/logout")
-def user_logout():
-    security.logout_all()
-    return redirect(url_for("auth.user_login"))
 
 
 # ═════════════════════ 发送验证码 ═════════════════════

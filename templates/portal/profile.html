@@ -10,10 +10,14 @@
       <div class="head"><h2>基本信息</h2></div>
       <div class="body">
         <div class="kv-list">
-          <div class="kv"><span class="k">邮箱</span><span class="v">{{ user.email }}</span></div>
-          <div class="kv"><span class="k">昵称</span><span class="v">{{ user.nickname or '-' }}</span></div>
-          <div class="kv"><span class="k">积分</span><span class="v">{{ user.points }}</span></div>
-          <div class="kv"><span class="k">注册时间</span><span class="v">{{ user.created_at | ts }}</span></div>
+          <div class="kv"><span class="k">邮箱</span><span class="v">{{ viewer.email }}</span></div>
+          <div class="kv"><span class="k">昵称</span><span class="v">{{ viewer.nickname or '-' }}</span></div>
+          {% if is_admin_view %}
+          <div class="kv"><span class="k">身份</span><span class="v"><span class="badge brand">管理员</span></span></div>
+          {% else %}
+          <div class="kv"><span class="k">积分</span><span class="v">{{ viewer.points }}</span></div>
+          {% endif %}
+          <div class="kv"><span class="k">注册时间</span><span class="v">{{ viewer.created_at | ts }}</span></div>
         </div>
       </div>
     </div>
@@ -21,6 +25,11 @@
     <div class="card">
       <div class="head"><h2>修改密码</h2></div>
       <div class="body">
+        {% if is_admin_view %}
+        <div class="empty" style="padding:28px 16px">
+          管理员没有积分账户，密码请由运维在数据库或部署时设置
+        </div>
+        {% else %}
         <form method="post" action="/u/profile/password">
           <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
           <div class="field">
@@ -37,11 +46,25 @@
           </div>
           <button class="btn primary" type="submit">更新密码</button>
         </form>
+        {% endif %}
       </div>
     </div>
   </div>
 
   <div>
+    {% if is_admin_view %}
+    <div class="card">
+      <div class="head"><h2>管理员</h2></div>
+      <div class="body">
+        <div class="empty" style="padding:30px 16px">
+          <div class="big">⚙</div>
+          管理员没有积分和 API Key
+          <div class="muted small mt-1">要测试接口调用，请注册一个普通账号</div>
+          <div class="mt-2"><a class="btn primary" href="/admin">进入管理控制台</a></div>
+        </div>
+      </div>
+    </div>
+    {% else %}
     <div class="card">
       <div class="head">
         <h2>API Key</h2>
@@ -49,7 +72,7 @@
       </div>
       <div class="body">
         <div class="row tight">
-          <input type="text" id="keyBox" value="{{ user.api_key }}" readonly>
+          <input type="text" id="keyBox" value="{{ viewer.api_key }}" readonly>
           <button class="btn" type="button" data-copy-from="#keyBox" data-copy-message="已复制" style="flex:0 0 auto">复制</button>
         </div>
         <div class="help mt-1">
@@ -71,11 +94,12 @@
         <pre class="code light">POST /api/auth/token
 Content-Type: application/json
 
-{"email": "{{ user.email }}", "password": "你的密码"}</pre>
+{"email": "{{ viewer.email }}", "password": "你的密码"}</pre>
         <p class="small mt-2">返回里的 <span class="inline-code">token</span> 可直接当 Bearer 使用：</p>
         <pre class="code light">Authorization: Bearer &lt;token&gt;</pre>
       </div>
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

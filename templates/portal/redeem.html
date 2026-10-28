@@ -5,12 +5,24 @@
 
 {% block content %}
 <div class="grid cols-2" style="align-items:start">
+  {% if is_admin_view %}
+  <div class="card">
+    <div class="head"><h2>卡密兑换</h2></div>
+    <div class="body">
+      <div class="empty" style="padding:34px 16px">
+        <div class="big">▦</div>
+        管理员没有积分账户，无需兑换卡密
+        <div class="mt-2"><a class="btn" href="/admin/cards">去管理卡密</a></div>
+      </div>
+    </div>
+  </div>
+  {% else %}
   <div class="card">
     <div class="head"><h2>兑换积分</h2></div>
     <div class="body">
       <div class="stat brand mb-2">
         <div class="label">当前积分</div>
-        <div class="value">{{ user.points }}</div>
+        <div class="value">{{ viewer.points }}</div>
       </div>
       <form method="post">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
@@ -24,6 +36,7 @@
       </form>
     </div>
   </div>
+  {% endif %}
 
   <div class="card">
     <div class="head"><h2>兑换记录</h2></div>

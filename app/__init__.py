@@ -116,7 +116,7 @@ def _register_hooks(app: Flask) -> None:
 
     @app.context_processor
     def _inject():
-        from .security import current_admin, current_user
+        from .security import current_admin, current_user, current_viewer, viewer_is_admin
         from .util import ensure_csrf, settings_all
 
         installed = config.is_installed()
@@ -131,12 +131,16 @@ def _register_hooks(app: Flask) -> None:
                 logging.warning("模板上下文注入失败", exc_info=True)
                 return default
 
+        viewer = _safe(current_viewer)
+
         return {
             "csrf_token": ensure_csrf,
             "site_name": config.site_name(),
             "base_url": config.base_url(),
             "current_admin": _safe(current_admin),
             "current_user": _safe(current_user),
+            "viewer": viewer,
+            "is_admin_view": viewer_is_admin(viewer),
             "now_ts": now_ts,
             "settings": _safe(settings_all, {}),
         }

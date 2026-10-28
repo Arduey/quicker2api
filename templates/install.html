@@ -347,7 +347,7 @@ $('#runInstall').addEventListener('click', async (ev) => {
   if (data.ok) {
     setMsg('#runMsg', true, '安装完成，正在跳转登录页…');
     document.querySelectorAll('input, button').forEach((el) => (el.disabled = true));
-    setTimeout(() => { location.href = data.login_url || '/admin/login'; }, 1200);
+    setTimeout(() => { location.href = data.login_url || '/login'; }, 1200);
     return;
   }
   restore();

@@ -4,40 +4,57 @@
 {% block heading %}可用接口{% endblock %}
 
 {% block content %}
+{% if is_admin_view %}
+<div class="alert info small">
+  <span>管理视角：这里是平台用户看到的接口列表。点卡片可查看详情，点「编辑」直接进后台修改。</span>
+</div>
+{% endif %}
+
 {% if apis %}
 <div class="api-grid">
   {% for api in apis %}
-  <a class="api-card" href="/u/apis/{{ api.slug }}">
-    <div class="api-card-top">
-      <span class="api-card-name">{{ api.name }}</span>
-      <span class="badge {{ 'brand' if api.cost_points else 'ok' }}">{{ api.cost_points }} 积分/次</span>
-    </div>
+  <div class="api-card-wrap">
+    <a class="api-card" href="/u/apis/{{ api.slug }}">
+      <div class="api-card-top">
+        <span class="api-card-name">{{ api.name }}</span>
+        <span class="badge {{ 'brand' if api.cost_points else 'ok' }}">{{ api.cost_points }} 积分/次</span>
+      </div>
 
-    {% if api.description %}
-    <p class="api-card-desc">{{ api.description }}</p>
+      {% if api.description %}
+      <p class="api-card-desc">{{ api.description }}</p>
+      {% endif %}
+
+      <div class="api-card-stats">
+        <div class="api-stat">
+          <span class="api-stat-num">{{ api.call_count }}</span>
+          <span class="api-stat-label">调用次数</span>
+        </div>
+        <div class="api-stat">
+          {% if api.success_rate is none %}
+          <span class="api-stat-num muted">—</span>
+          {% else %}
+          <span class="api-stat-num {{ 'good' if api.success_rate >= 90 else ('warn' if api.success_rate >= 60 else 'bad') }}">{{ api.success_rate }}%</span>
+          {% endif %}
+          <span class="api-stat-label">成功率</span>
+        </div>
+      </div>
+    </a>
+
+    {% if is_admin_view %}
+    <a class="api-card-edit" href="/admin/apis/{{ api.id }}" title="到后台编辑这个接口">编辑</a>
     {% endif %}
-
-    <div class="api-card-stats">
-      <div class="api-stat">
-        <span class="api-stat-num">{{ api.call_count }}</span>
-        <span class="api-stat-label">调用次数</span>
-      </div>
-      <div class="api-stat">
-        {% if api.success_rate is none %}
-        <span class="api-stat-num muted">—</span>
-        {% else %}
-        <span class="api-stat-num {{ 'good' if api.success_rate >= 90 else ('warn' if api.success_rate >= 60 else 'bad') }}">{{ api.success_rate }}%</span>
-        {% endif %}
-        <span class="api-stat-label">成功率</span>
-      </div>
-    </div>
-  </a>
+  </div>
   {% endfor %}
 </div>
 {% else %}
 <div class="card">
   <div class="body">
-    <div class="empty"><div class="big">⌘</div>管理员还没有上线任何接口</div>
+    <div class="empty">
+      <div class="big">⌘</div>还没有上线任何接口
+      {% if is_admin_view %}
+      <div class="mt-2"><a class="btn primary" href="/admin/apis/new">去创建一个</a></div>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endif %}
