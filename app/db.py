@@ -230,3 +230,75 @@ def test_connection(cfg: dict, database=_USE_CFG_DATABASE) -> tuple[bool, str]:
         return True, str((row or {}).get("v") or "")
     except Exception as exc:  # noqa: BLE001 安装向导需要把原始报错给用户看
         return False, str(exc)
+
+
+# ───────────── 老站点升级：admins 表 → users.is_admin ─────────────
+def migrate_admin_into_users(target: Database | None = None) -> list[str]:
+    """把旧版独立的 admins 表合并进 users 表。
+
+    旧版本里管理员和用户是两张表，新版本改为 users.is_admin = 1。
+    升级已有的站点时，需要把老管理员账号搬过去，否则会登不进去。
+
+    安全性：
+      - 只在 users 缺少 is_admin 字段时才尝试（老库）
+      - 搬运完成后不删 admins 表，留着做备份，不影响任何逻辑
+      - 幂等：重复执行不会产生重复账号
+
+    返回一段人类可读的操作记录，供安装向导/日志展示。
+    """
+    db = target or get_db()
+    if db is None:
+        return ["数据库不可用，跳过迁移"]
+
+    notes: list[str] = []
+
+    def table_exists(name: str) -> bool:
+        row = db.query_one(
+            "SELECT COUNT(*) AS c FROM information_schema.tables "
+            "WHERE table_schema = DATABASE() AND table_name = %s", (name,))
+        return bool(row and int(row["c"]) > 0)
+
+    def has_column(table: str, column: str) -> bool:
+        row = db.query_one(
+            "SELECT COUNT(*) AS c FROM information_schema.columns "
+            "WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s",
+            (table, column))
+        return bool(row and int(row["c"]) > 0)
+
+    # 1. users.is_admin 字段
+    if not has_column("users", "is_admin"):
+        db.execute("ALTER TABLE users ADD COLUMN is_admin TINYINT NOT NULL DEFAULT 0")
+        notes.append("已给 users 表加上 is_admin 字段")
+
+    # 索引单独建，且允许已存在（重复执行时会报 1061，忽略即可）
+    try:
+        db.execute("ALTER TABLE users ADD KEY idx_user_admin (is_admin)")
+    except Exception:  # noqa: BLE001 索引已存在属正常情况
+        pass
+
+    # 2. 搬运老管理员
+    if table_exists("admins"):
+        old_admins = db.query(
+            "SELECT id, email, password_hash, name, status, created_at FROM admins")
+        moved = 0
+        for admin in old_admins:
+            email = (admin["email"] or "").strip().lower()
+            if not email:
+                continue
+            existing = db.query_one("SELECT id FROM users WHERE email = %s", (email,))
+            if existing:
+                db.execute(
+                    "UPDATE users SET is_admin = 1, status = %s WHERE id = %s",
+                    (int(admin["status"] or 1), existing["id"]))
+            else:
+                db.insert(
+                    "INSERT INTO users (email, password_hash, nickname, points, api_key, "
+                    "status, is_admin, email_verified, created_at) "
+                    "VALUES (%s, %s, %s, 0, %s, %s, 1, 1, %s)",
+                    (email, admin["password_hash"], admin["name"] or "管理员",
+                     "tb_" + __import__("secrets").token_hex(24),
+                     int(admin["status"] or 1), int(admin["created_at"] or 0)))
+            moved += 1
+        if moved:
+            notes.append("已把 %d 个旧管理员账号并入 users 表（admins 表保留做备份）" % moved)
+    return notes

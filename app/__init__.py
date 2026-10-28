@@ -59,7 +59,25 @@ def create_app() -> Flask:
         db_cfg = (cfg or {}).get("db") or {}
         if db_cfg.get("host"):
             try:
-                init_db(db_cfg)
+                db = init_db(db_cfg)
+                # 补齐缺失的表（老站点升级、或安装时建表中断都能靠这一步自愈）。
+                # schema.sql 全是 IF NOT EXISTS，重复执行无副作用。
+                try:
+                    from .db import install_schema
+
+                    install_schema(db)
+                except Exception as exc:  # noqa: BLE001 建表失败不该直接拦住启动
+                    logging.warning("补齐表结构失败: %s", exc)
+
+                # 老站点升级：把旧的 admins 表并入 users.is_admin。
+                # 幂等，新装站点只会补一次字段（或什么都不做）。
+                try:
+                    from .db import migrate_admin_into_users
+
+                    for note in migrate_admin_into_users(db):
+                        logging.info("数据迁移：%s", note)
+                except Exception as exc:  # noqa: BLE001 迁移失败不该影响启动
+                    logging.warning("管理员表迁移失败（新装站点无此表，可忽略）: %s", exc)
             except Exception as exc:  # noqa: BLE001 装好了但库挂了也要能提示
                 logging.error("数据库初始化失败: %s", exc)
 

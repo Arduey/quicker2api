@@ -1,19 +1,8 @@
 -- API 分发平台 建表脚本
 -- 由安装向导自动执行，使用 IF NOT EXISTS，可安全重复执行。
 
-CREATE TABLE IF NOT EXISTS admins (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  email VARCHAR(190) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  name VARCHAR(64) NOT NULL DEFAULT '',
-  status TINYINT NOT NULL DEFAULT 1,
-  created_at INT NOT NULL DEFAULT 0,
-  last_login_at INT NOT NULL DEFAULT 0,
-  last_login_ip VARCHAR(64) NOT NULL DEFAULT '',
-  PRIMARY KEY (id),
-  UNIQUE KEY uk_admin_email (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
+-- 注：管理员不再是独立表，而是 users 表里 is_admin = 1 的用户。
+-- 这样管理员天然拥有积分、API Key、调用记录，只是多几个管理入口。
 CREATE TABLE IF NOT EXISTS users (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   email VARCHAR(190) NOT NULL,
@@ -22,12 +11,14 @@ CREATE TABLE IF NOT EXISTS users (
   points INT NOT NULL DEFAULT 0,
   api_key VARCHAR(64) NOT NULL,
   status TINYINT NOT NULL DEFAULT 1,
+  is_admin TINYINT NOT NULL DEFAULT 0,
   email_verified TINYINT NOT NULL DEFAULT 1,
   created_at INT NOT NULL DEFAULT 0,
   last_login_at INT NOT NULL DEFAULT 0,
   last_login_ip VARCHAR(64) NOT NULL DEFAULT '',
   PRIMARY KEY (id),
   UNIQUE KEY uk_user_email (email),
+  KEY idx_user_admin (is_admin),
   UNIQUE KEY uk_user_apikey (api_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

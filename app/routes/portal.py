@@ -16,10 +16,10 @@ bp = Blueprint("portal", __name__)
 
 
 def guard(view):
-    """用户中心入口。
+    """用户中心入口。管理员与普通用户共用同一套页面。
 
-    控制台已统一到 /admin：管理员误打 /u* 的地址一律送去管理后台，
-    不再维护第二套界面。普通用户照旧。
+    管理员（is_admin=1）看到的内容和普通用户一样，
+    只是侧栏多出「接口管理 / 用户管理 / 卡密 / 日志 / 全局设置」等管理入口。
     """
     from functools import wraps
 
@@ -31,10 +31,6 @@ def guard(view):
                 return json_err("页面已过期，请刷新后重试", "csrf", 403)
             flash("页面已过期，请刷新后重试", "error")
             return redirect(url_for("portal.dashboard"))
-        if security.viewer_is_admin(security.current_viewer()):
-            if request.path.startswith("/u/api/") or request.is_json:
-                return json_err("管理员没有积分账户，请用后台的「接口试用」", "admin_not_allowed", 403)
-            return redirect(url_for("manage.dashboard"))
         return view(*a, **kw)
 
     return wrapper
@@ -133,10 +129,6 @@ def api_playground():
     from .api_v1 import execute_call
 
     viewer = security.current_viewer()
-    if security.viewer_is_admin(viewer):
-        return json_err("管理员没有积分账户，无法在线调试。请用普通账号测试，或到后台 API 列表使用测试推送。",
-                        "admin_not_allowed", 403)
-
     db = get_db()
     slug = text(request.form.get("slug"), 64)
     api = db.query_one("SELECT * FROM apis WHERE slug = %s AND status = 1", (slug,))
@@ -162,45 +154,34 @@ def api_playground():
 @bp.get("/u/logs")
 @guard
 def log_list():
+    """我的调用记录。管理员要查全站日志，去 /admin/logs。"""
     viewer = security.current_viewer()
     db = get_db()
-    is_admin = security.viewer_is_admin(viewer)
     page = max(1, to_int(request.args.get("page"), 1, 1))
     per_page = 20
 
-    if is_admin:
-        total = db.scalar("SELECT COUNT(*) AS c FROM api_logs")
-        rows = db.query(
-            "SELECT id, user_email, api_name, api_slug, is_success, cost_points, refunded, "
-            "http_status, time_cost_ms, error_message, created_at FROM api_logs "
-            "ORDER BY id DESC LIMIT %s OFFSET %s",
-            (per_page, (page - 1) * per_page),
-        )
-    else:
-        total = db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (viewer["id"],))
-        rows = db.query(
-            "SELECT id, api_name, api_slug, is_success, cost_points, refunded, http_status, "
-            "time_cost_ms, error_message, created_at FROM api_logs WHERE user_id = %s "
-            "ORDER BY id DESC LIMIT %s OFFSET %s",
-            (viewer["id"], per_page, (page - 1) * per_page),
-        )
+    total = db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (viewer["id"],))
+    rows = db.query(
+        "SELECT id, api_name, api_slug, is_success, cost_points, refunded, http_status, "
+        "time_cost_ms, error_message, created_at FROM api_logs WHERE user_id = %s "
+        "ORDER BY id DESC LIMIT %s OFFSET %s",
+        (viewer["id"], per_page, (page - 1) * per_page),
+    )
 
     pages = max(1, (int(total) + per_page - 1) // per_page)
     return render_template("portal/logs.html", viewer=viewer, user=viewer,
-                           is_admin=is_admin, logs=rows,
+                           is_admin=security.viewer_is_admin(viewer), logs=rows,
                            page=page, pages=pages, total=total)
 
 
 @bp.get("/u/logs/<int:log_id>")
 @guard
 def log_detail(log_id: int):
+    """只能看自己的记录；管理员查全站请到 /admin/logs/<id>。"""
     viewer = security.current_viewer()
     db = get_db()
-    if security.viewer_is_admin(viewer):
-        row = db.query_one("SELECT * FROM api_logs WHERE id = %s", (log_id,))
-    else:
-        row = db.query_one("SELECT * FROM api_logs WHERE id = %s AND user_id = %s",
-                           (log_id, viewer["id"]))
+    row = db.query_one("SELECT * FROM api_logs WHERE id = %s AND user_id = %s",
+                       (log_id, viewer["id"]))
     if row is None:
         flash("记录不存在", "error")
         return redirect(url_for("portal.log_list"))
@@ -239,10 +220,6 @@ def redeem():
 @guard
 def redeem_post():
     viewer = security.current_viewer()
-    if security.viewer_is_admin(viewer):
-        flash("管理员没有积分账户，无需兑换卡密", "error")
-        return redirect(url_for("portal.redeem"))
-
     db = get_db()
     code = text(request.form.get("code"), 64).upper().replace(" ", "")
     if not code:
@@ -287,10 +264,6 @@ def profile():
 @guard
 def change_password():
     viewer = security.current_viewer()
-    if security.viewer_is_admin(viewer):
-        flash("管理员请在后台设置里修改密码", "error")
-        return redirect(url_for("portal.profile"))
-
     db = get_db()
     old = request.form.get("old_password") or ""
     new = request.form.get("new_password") or ""
@@ -314,10 +287,6 @@ def change_password():
 @guard
 def reset_key():
     viewer = security.current_viewer()
-    if security.viewer_is_admin(viewer):
-        flash("管理员没有 API Key", "error")
-        return redirect(url_for("portal.profile"))
-
     db = get_db()
     db.execute("UPDATE users SET api_key = %s WHERE id = %s",
                (security.new_api_key(), viewer["id"]))

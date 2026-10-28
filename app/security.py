@@ -91,24 +91,8 @@ def jwt_decode(token: str) -> dict | None:
 
 
 # ───────────────────────── 当前登录者 ─────────────────────────
-def current_admin():
-    if "admin" in g:
-        return g.admin
-    admin_id = session.get("admin_id")
-    g.admin = None
-    if admin_id:
-        db = get_db()
-        if db is not None:
-            g.admin = db.query_one(
-                "SELECT id, email, name, status, created_at, last_login_at "
-                "FROM admins WHERE id = %s AND status = 1",
-                (admin_id,),
-            )
-            if g.admin is None:
-                session.pop("admin_id", None)
-    return g.admin
-
-
+# 设计：管理员就是 users 表里 is_admin = 1 的普通用户。
+# 只有一套 session（user_id）、一套账号，管理员额外拥有管理入口。
 def current_user():
     if "user" in g:
         return g.user
@@ -118,7 +102,8 @@ def current_user():
         db = get_db()
         if db is not None:
             g.user = db.query_one(
-                "SELECT id, email, nickname, points, api_key, status, created_at "
+                "SELECT id, email, nickname, points, api_key, status, is_admin, "
+                "created_at, last_login_at, last_login_ip "
                 "FROM users WHERE id = %s AND status = 1",
                 (user_id,),
             )
@@ -127,14 +112,22 @@ def current_user():
     return g.user
 
 
+def current_admin():
+    """管理员视角：就是 is_admin=1 的当前用户。
+
+    保留这个函数是为了让管理后台的装饰器读起来直观，
+    本质上与 current_user() 是同一个账号。
+    """
+    user = current_user()
+    if user is not None and int(user.get("is_admin") or 0) == 1:
+        return user
+    return None
+
+
 def current_viewer():
-    """当前能浏览用户中心的登录者：普通用户，或管理员（管理视角）。
+    """当前登录者（用户与管理员统一）。
 
-    两者共用同一套 /u/* 页面，用 "kind" 区分身份：
-        {"kind": "user", "id", "email", "nickname", "points", "api_key", "created_at"}
-        {"kind": "admin", "id", "email", "name"}   ← 没有积分和 API Key
-
-    这样用户中心不必复制一份，管理员也能直接看接口列表、调用日志。
+    管理员和普通用户共用同一套页面，只是 is_admin=1 时会多出管理菜单。
     """
     if "viewer" in g:
         return g.viewer
@@ -142,45 +135,22 @@ def current_viewer():
     user = current_user()
     if user is not None:
         g.viewer = {
-            "kind": "user",
+            "kind": "admin" if int(user.get("is_admin") or 0) == 1 else "user",
             "id": user["id"],
             "email": user["email"],
             "nickname": user.get("nickname") or "",
             "points": int(user.get("points") or 0),
             "api_key": user.get("api_key") or "",
+            "is_admin": int(user.get("is_admin") or 0) == 1,
             "created_at": user.get("created_at") or 0,
         }
-        return g.viewer
-
-    admin = current_admin()
-    if admin is not None:
-        g.viewer = {
-            "kind": "admin",
-            "id": admin["id"],
-            "email": admin["email"],
-            "name": admin.get("name") or "",
-            "nickname": admin.get("name") or "",
-            # 管理员没有积分与 API Key，明确置空，避免模板里误用
-            "points": None,
-            "api_key": "",
-            "created_at": admin.get("created_at") or 0,
-        }
-        return g.viewer
-
-    g.viewer = None
-    return None
+    else:
+        g.viewer = None
+    return g.viewer
 
 
 def viewer_is_admin(viewer) -> bool:
-    return bool(viewer) and viewer.get("kind") == "admin"
-
-
-def login_admin(admin_id: int) -> None:
-    session.clear()
-    session["admin_id"] = int(admin_id)
-    session.permanent = True
-    g.pop("admin", None)
-    g.pop("viewer", None)
+    return bool(viewer) and bool(viewer.get("is_admin"))
 
 
 def login_user(user_id: int) -> None:
@@ -191,11 +161,18 @@ def login_user(user_id: int) -> None:
     g.pop("viewer", None)
 
 
+# 兼容旧的调用名
+    g.pop("viewer", None)
+
+
 def logout_all() -> None:
     session.clear()
-    g.pop("admin", None)
     g.pop("user", None)
     g.pop("viewer", None)
+
+
+# 兼容旧的调用名
+login_admin = login_user
 
 
 # ───────────────────────── 装饰器 ─────────────────────────
@@ -213,8 +190,9 @@ def admin_required(view):
     def wrapper(*args, **kwargs):
         if current_admin() is None:
             if _wants_json():
-                return jsonify({"ok": False, "error": {"code": "unauthorized", "message": "请先登录"}}), 401
-            return redirect(url_for("auth.admin_login", next=request.full_path))
+                return jsonify({"ok": False, "error": {"code": "forbidden", "message": "需要管理员权限"}}), 403
+            flash_msg = "需要管理员权限" if current_user() else "请先登录"
+            return redirect(url_for("auth.login", next=request.full_path))
         return view(*args, **kwargs)
 
     return wrapper
@@ -226,7 +204,7 @@ def user_required(view):
         if current_user() is None:
             if _wants_json():
                 return jsonify({"ok": False, "error": {"code": "unauthorized", "message": "请先登录"}}), 401
-            return redirect(url_for("auth.user_login", next=request.full_path))
+            return redirect(url_for("auth.login", next=request.full_path))
         return view(*args, **kwargs)
 
     return wrapper

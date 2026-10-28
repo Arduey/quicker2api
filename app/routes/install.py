@@ -265,18 +265,20 @@ def api_run():
         setting_set("installed_at", now_ts())
         setting_set("mysql_version", mysql_version)
 
-        # 管理员
-        existing = database.query_one("SELECT id FROM admins WHERE email = %s", (admin_email,))
+        # 管理员 = users 表里 is_admin=1 的账号（同时也拥有积分与 API Key）
+        existing = database.query_one("SELECT id FROM users WHERE email = %s", (admin_email,))
         if existing:
             database.execute(
-                "UPDATE admins SET password_hash = %s, name = %s, status = 1 WHERE id = %s",
+                "UPDATE users SET password_hash = %s, nickname = %s, status = 1, "
+                "is_admin = 1, email_verified = 1 WHERE id = %s",
                 (security.hash_password(admin_password), admin_name, existing["id"]),
             )
         else:
             database.insert(
-                "INSERT INTO admins (email, password_hash, name, status, created_at) "
-                "VALUES (%s, %s, %s, 1, %s)",
-                (admin_email, security.hash_password(admin_password), admin_name, now_ts()),
+                "INSERT INTO users (email, password_hash, nickname, points, api_key, status, "
+                "is_admin, email_verified, created_at) VALUES (%s, %s, %s, %s, %s, 1, 1, 1, %s)",
+                (admin_email, security.hash_password(admin_password), admin_name,
+                 register_points, security.new_api_key(), now_ts()),
             )
     except Exception as exc:  # noqa: BLE001
         return jsonify({"ok": False, "message": "写入初始数据失败：%s" % str(exc)[:300]})

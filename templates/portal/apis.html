@@ -4,9 +4,9 @@
 {% block heading %}可用接口{% endblock %}
 
 {% block content %}
-{% if is_admin_view %}
+{% if viewer.is_admin %}
 <div class="alert info small">
-  <span>管理视角：这里是平台用户看到的接口列表。点卡片可查看详情，点「编辑」直接进后台修改。</span>
+  <span>你可以像普通用户一样点卡片试用，也可以点右上角「编辑」直接改接口配置。</span>
 </div>
 {% endif %}
 
@@ -40,7 +40,7 @@
       </div>
     </a>
 
-    {% if is_admin_view %}
+    {% if viewer.is_admin %}
     <a class="api-card-edit" href="/admin/apis/{{ api.id }}" title="到后台编辑这个接口">编辑</a>
     {% endif %}
   </div>
@@ -51,7 +51,7 @@
   <div class="body">
     <div class="empty">
       <div class="big">⌘</div>还没有上线任何接口
-      {% if is_admin_view %}
+      {% if viewer.is_admin %}
       <div class="mt-2"><a class="btn primary" href="/admin/apis/new">去创建一个</a></div>
       {% endif %}
     </div>

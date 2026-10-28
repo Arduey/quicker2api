@@ -660,34 +660,3 @@ def api_try_push():
         time_cost_ms=result["time_cost_ms"],
         cost=0,
     )
-
-
-# ═════════════════════ 我的账号（管理员） ═════════════════════
-@bp.route("/profile", methods=["GET", "POST"])
-@guard
-def profile():
-    db = get_db()
-    admin = security.current_admin()
-    errors: list[str] = []
-    if request.method == "POST":
-        old = request.form.get("old_password") or ""
-        new = request.form.get("new_password") or ""
-        new2 = request.form.get("new_password2") or ""
-        row = db.query_one("SELECT password_hash FROM admins WHERE id = %s", (admin["id"],))
-        if not security.verify_password(row["password_hash"], old):
-            errors.append("原密码错误")
-        elif security.password_problem(new):
-            errors.append(security.password_problem(new))
-        elif new != new2:
-            errors.append("两次输入的新密码不一致")
-        else:
-            db.execute("UPDATE admins SET password_hash = %s WHERE id = %s",
-                       (security.hash_password(new), admin["id"]))
-            flash("密码已更新", "success")
-            return redirect(url_for("manage.profile"))
-
-    detail = db.query_one(
-        "SELECT id, email, name, status, created_at, last_login_at, last_login_ip "
-        "FROM admins WHERE id = %s", (admin["id"],)
-    )
-    return render_template("manage/profile.html", detail=detail, errors=errors)
