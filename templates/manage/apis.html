@@ -7,73 +7,278 @@
 {% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="body flush">
-    {% if apis %}
-    <table>
-      <thead>
-        <tr>
-          <th>接口</th>
-          <th>调用标识</th>
-          <th>动作 / 参数</th>
-          <th class="num">单次积分</th>
-          <th class="num">调用</th>
-          <th class="num">成功率</th>
-          <th>状态</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for api in apis %}
-        <tr>
-          <td>
-            <a href="/admin/apis/{{ api.id }}"><b>{{ api.name }}</b></a>
-            {% if api.description %}
-            <div class="muted small truncate" style="max-width:260px">{{ api.description }}</div>
-            {% endif %}
-          </td>
-          <td><span class="badge mono">{{ api.slug }}</span></td>
-          <td class="small">
-            {% if api.action %}<span class="badge info">action: {{ api.action }}</span>{% endif %}
-            <span class="badge">{{ api.param_count }} 个参数</span>
-            <div class="muted small" style="margin-top:3px">
-              wait={{ 'true' if api.wait_flag else 'false' }},
-              maxWaitMs={{ api.max_wait_ms }},
-              txt={{ 'true' if api.txt_flag else 'false' }}
-            </div>
-          </td>
-          <td class="num">{{ api.cost_points }}</td>
-          <td class="num">{{ api.call_count }}</td>
-          <td class="num">
-            {% if api.call_count %}{{ (api.success_count * 100 / api.call_count) | round(1) }}%{% else %}-{% endif %}
-          </td>
-          <td>
-            <span class="badge {{ 'ok' if api.status else '' }}">{{ '在线' if api.status else '已下线' }}</span>
-          </td>
-          <td class="nowrap">
-            <a class="btn sm" href="/admin/apis/{{ api.id }}">编辑</a>
-            <form method="post" action="/admin/apis/{{ api.id }}/toggle" style="display:inline">
-              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-              <button class="btn sm" type="submit">{{ '下线' if api.status else '上线' }}</button>
-            </form>
-            <form method="post" action="/admin/apis/{{ api.id }}/delete" style="display:inline"
-                  data-confirm="确定删除「{{ api.name }}」吗？历史调用日志会保留，但该接口的调用地址会立即失效。">
-              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-              <button class="btn sm danger" type="submit">删除</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div class="empty">
-      <div class="big">⌘</div>
-      还没有 API<br>
-      <div class="muted small mt-1 mb-2">先配好「全局设置」里的 Quicker 参数，再创建接口</div>
-      <a class="btn primary" href="/admin/apis/new">创建第一个 API</a>
+
+<!-- 统计（可点击筛选） -->
+<div class="stat-filter">
+  <a class="stat-card {{ 'on' if not status_filter else '' }}" href="/admin/apis">
+    <span class="stat-card-label">全部</span>
+    <span class="stat-card-num">{{ counts.all }}</span>
+  </a>
+  <a class="stat-card {{ 'on' if status_filter == 'online' else '' }}" href="/admin/apis?status=online">
+    <span class="stat-card-label">在线</span>
+    <span class="stat-card-num">{{ counts.online }}</span>
+  </a>
+  <a class="stat-card {{ 'on' if status_filter == 'maintenance' else '' }}"
+     href="/admin/apis?status=maintenance">
+    <span class="stat-card-label">维护中</span>
+    <span class="stat-card-num">{{ counts.maintenance }}</span>
+  </a>
+  <a class="stat-card {{ 'on' if status_filter == 'offline' else '' }}"
+     href="/admin/apis?status=offline">
+    <span class="stat-card-label">已下线</span>
+    <span class="stat-card-num">{{ counts.offline }}</span>
+  </a>
+</div>
+
+<!-- 筛选 -->
+<form method="get" action="/admin/apis" class="card">
+  <div class="body" style="padding:14px 18px">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>搜索</label>
+        <input type="search" name="q" value="{{ keyword }}" placeholder="接口名称或调用标识">
+      </div>
+      <div class="filter-item">
+        <label>状态</label>
+        <select name="status">
+          <option value="">全部</option>
+          <option value="online" {{ 'selected' if status_filter == 'online' }}>在线</option>
+          <option value="maintenance" {{ 'selected' if status_filter == 'maintenance' }}>维护中</option>
+          <option value="offline" {{ 'selected' if status_filter == 'offline' }}>已下线</option>
+        </select>
+      </div>
+      <button class="btn primary" type="submit">筛选</button>
+      <a class="btn ghost" href="/admin/apis">重置</a>
+      <span class="ml-auto muted small">共 {{ apis | length }} 个</span>
     </div>
-    {% endif %}
+  </div>
+</form>
+
+<div class="card">
+  <div class="head">
+    <h2>接口列表</h2>
+    <div class="actions">
+      <button class="btn sm" type="submit" form="batchForm" name="action" value="online"
+              data-confirm="把选中的接口全部设为「在线」？">批量上线</button>
+      <button class="btn sm" type="button" id="btnBatchMaint"
+              data-confirm="把选中的接口全部设为「维护中」？用户仍能看到，但调用会被拒绝。">批量维护</button>
+      <button class="btn sm" type="submit" form="batchForm" name="action" value="offline"
+              data-confirm="把选中的接口全部设为「下线」？用户将看不到这些接口。">批量下线</button>
+      <button class="btn sm danger" type="submit" form="batchForm" name="action" value="delete"
+              data-confirm="确定删除选中的接口吗？调用地址会立即失效，历史日志保留。">批量删除</button>
+    </div>
+  </div>
+
+  <div class="body flush">
+    <form id="batchForm" method="post" action="/admin/apis/batch">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      {% if apis %}
+      <table>
+        <thead>
+          <tr>
+            <th style="width:34px"><input type="checkbox" id="checkAll"></th>
+            <th>接口</th>
+            <th>调用标识</th>
+            <th class="hide-sm">动作 / 参数</th>
+            <th class="num">单次积分</th>
+            <th class="num hide-sm">调用</th>
+            <th class="num hide-sm">成功率</th>
+            <th>状态</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for api in apis %}
+          <tr>
+            <td><input type="checkbox" name="ids" value="{{ api.id }}" class="row-check"></td>
+            <td>
+              <a href="/admin/apis/{{ api.id }}"><b>{{ api.name }}</b></a>
+              {% if api.description %}
+              <div class="muted small truncate" style="max-width:220px">{{ api.description }}</div>
+              {% endif %}
+            </td>
+            <td><span class="badge mono">{{ api.slug }}</span></td>
+            <td class="small hide-sm">
+              {% if api.action %}<span class="badge info">action: {{ api.action }}</span>{% endif %}
+              <span class="badge">{{ api.param_count }} 个参数</span>
+              <div class="muted small" style="margin-top:3px">
+                wait={{ 'true' if api.wait_flag else 'false' }},
+                maxWaitMs={{ api.max_wait_ms }},
+                txt={{ 'true' if api.txt_flag else 'false' }}
+              </div>
+            </td>
+            <td class="num">{{ api.cost_points }}</td>
+            <td class="num hide-sm">{{ api.call_count }}</td>
+            <td class="num hide-sm">
+              {% if api.call_count %}{{ (api.success_count * 100 / api.call_count) | round(1) }}%{% else %}-{% endif %}
+            </td>
+            <td>
+              {% if api.status == 1 %}
+              <span class="badge ok">在线</span>
+              {% elif api.status == 2 %}
+              <span class="badge warn">维护中</span>
+              {% if api.maintenance_note %}
+              <div class="muted small truncate" style="max-width:130px"
+                   title="{{ api.maintenance_note }}">{{ api.maintenance_note }}</div>
+              {% endif %}
+              {% else %}
+              <span class="badge">已下线</span>
+              {% endif %}
+            </td>
+            <td class="nowrap">
+              <a class="btn sm" href="/admin/apis/{{ api.id }}">编辑</a>
+              {% if api.status == 1 %}
+              <button class="btn sm" type="submit" form="maint{{ api.id }}"
+                      title="用户可见但无法调用">设为维护</button>
+              <button class="btn sm" type="submit" form="toggle{{ api.id }}">下线</button>
+              {% else %}
+              <button class="btn sm" type="submit" form="toggle{{ api.id }}">上线</button>
+              {% endif %}
+              <button class="btn sm danger" type="submit" form="del{{ api.id }}">删除</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">
+        <div class="big">⌘</div>
+        {% if keyword or status_filter %}没有符合条件的接口{% else %}
+        还没有 API
+        <div class="muted small mt-1 mb-2">先配好「全局设置」里的 Quicker 参数，再创建接口</div>
+        <a class="btn primary" href="/admin/apis/new">创建第一个 API</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </form>
+
+    {# 单行操作用独立小表单，避免 form 嵌套 #}
+    {% for api in apis %}
+    <form id="toggle{{ api.id }}" method="post" action="/admin/apis/{{ api.id }}/toggle"
+          style="display:none">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    </form>
+    <form id="maint{{ api.id }}" method="post" action="/admin/apis/{{ api.id }}/status"
+          style="display:none">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="status" value="2">
+    </form>
+    <form id="del{{ api.id }}" method="post" action="/admin/apis/{{ api.id }}/delete"
+          style="display:none"
+          data-confirm="确定删除「{{ api.name }}」吗？调用地址会立即失效，历史日志保留。">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    </form>
+    {% endfor %}
   </div>
 </div>
+
+<!-- 批量维护：先问一句原因 -->
+<div class="modal-mask" id="maintModal" hidden>
+  <div class="modal-box">
+    <h3>批量设为维护中</h3>
+    <p class="muted small" style="margin-top:2px">
+      选中的接口会保持对用户可见，但任何调用都会返回 503。
+    </p>
+    <div class="field">
+      <label>维护说明（可选）</label>
+      <input type="text" id="maintNote" maxlength="200" placeholder="例如：上游服务升级，预计 30 分钟恢复">
+      <div class="help">这段说明会展示给用户</div>
+    </div>
+    <div class="btn-row" style="justify-content:flex-end">
+      <button class="btn" type="button" id="maintCancel">取消</button>
+      <button class="btn primary" type="button" id="maintConfirm">确认设为维护</button>
+    </div>
+  </div>
+</div>
+
+{# 按筛选结果批量操作（只有设了条件才允许） #}
+{% if keyword or status_filter %}
+<form method="post" action="/admin/apis/batch-by-filter" class="card">
+  <div class="body" style="padding:14px 18px">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ keyword }}">
+    <input type="hidden" name="status" value="{{ status_filter }}">
+    <div class="flex wrap" style="align-items:center;gap:10px">
+      <span class="small">
+        对当前筛选结果（<b>{{ apis | length }}</b> 个）批量操作：
+      </span>
+      <button class="btn sm" type="submit" name="action" value="online"
+              data-confirm="把当前筛选结果全部设为「在线」？">全部上线</button>
+      <button class="btn sm" type="submit" name="action" value="maintenance"
+              data-confirm="把当前筛选结果全部设为「维护中」？">全部维护</button>
+      <button class="btn sm" type="submit" name="action" value="offline"
+              data-confirm="把当前筛选结果全部设为「下线」？">全部下线</button>
+    </div>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const all = document.getElementById('checkAll');
+  const rows = Array.from(document.querySelectorAll('.row-check'));
+  const batchForm = document.getElementById('batchForm');
+  const modal = document.getElementById('maintModal');
+  const noteInput = document.getElementById('maintNote');
+  const btnMaint = document.getElementById('btnBatchMaint');
+
+  function selected() {
+    return rows.filter(function (r) { return r.checked; });
+  }
+
+  if (all) {
+    all.addEventListener('change', function () {
+      rows.forEach(function (r) { r.checked = all.checked; });
+    });
+  }
+
+  // 批量操作前检查是否选了东西
+  if (batchForm) {
+    batchForm.addEventListener('submit', function (ev) {
+      const submitter = ev.submitter;
+      const action = submitter && submitter.value;
+      if (action && selected().length === 0) {
+        ev.preventDefault();
+        TB.toast('请先勾选要操作的接口', 'warn');
+      }
+    });
+  }
+
+  // 批量维护：弹窗填说明
+  if (btnMaint && modal) {
+    btnMaint.addEventListener('click', function () {
+      if (selected().length === 0) { TB.toast('请先勾选要操作的接口', 'warn'); return; }
+      modal.hidden = false;
+      noteInput.value = '';
+      setTimeout(function () { noteInput.focus(); }, 30);
+    });
+
+    document.getElementById('maintCancel').addEventListener('click', function () {
+      modal.hidden = true;
+    });
+    modal.addEventListener('click', function (ev) {
+      if (ev.target === modal) modal.hidden = true;
+    });
+
+    document.getElementById('maintConfirm').addEventListener('click', function () {
+      const note = document.createElement('input');
+      note.type = 'hidden';
+      note.name = 'maintenance_note';
+      note.value = noteInput.value;
+      batchForm.appendChild(note);
+
+      const action = document.createElement('input');
+      action.type = 'hidden';
+      action.name = 'action';
+      action.value = 'maintenance';
+      batchForm.appendChild(action);
+
+      modal.hidden = true;
+      batchForm.submit();
+    });
+  }
+})();
+</script>
 {% endblock %}

@@ -38,8 +38,10 @@
       </div>
 
       <div class="field">
-        <label>昵称</label>
-        <input type="text" name="nickname" maxlength="64" placeholder="可选，默认用邮箱前缀">
+        <label>用户名 <span class="req">*</span></label>
+        <input type="text" name="nickname" id="nickname" value="{{ nickname or '' }}" required
+               maxlength="24" placeholder="2-24 字符，全站唯一，注册后可改">
+        <div class="help" id="nickHelp">用于侧边栏展示，不能与他人重复</div>
       </div>
 
       <div class="field">

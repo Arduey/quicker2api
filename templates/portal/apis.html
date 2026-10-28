@@ -6,7 +6,7 @@
 {% block content %}
 {% if viewer.is_admin %}
 <div class="alert info small">
-  <span>你可以像普通用户一样点卡片试用，也可以点右上角「编辑」直接改接口配置。</span>
+  <span>你可以像普通用户一样点卡片调用，也可以点右上角「编辑」直接改接口配置。</span>
 </div>
 {% endif %}
 
@@ -14,7 +14,7 @@
 <div class="api-grid">
   {% for api in apis %}
   <div class="api-card-wrap">
-    <a class="api-card" href="/u/apis/{{ api.slug }}">
+    <a class="api-card {{ 'is-maint' if api.in_maintenance }}" href="/u/apis/{{ api.slug }}">
       <div class="api-card-top">
         <span class="api-card-name">{{ api.name }}</span>
         <span class="badge {{ 'brand' if api.cost_points else 'ok' }}">{{ api.cost_points }} 积分/次</span>
@@ -22,6 +22,13 @@
 
       {% if api.description %}
       <p class="api-card-desc">{{ api.description }}</p>
+      {% endif %}
+
+      {% if api.in_maintenance %}
+      <div class="maint-tag">
+        <span class="maint-dot"></span>维护中 · 暂不可调用
+        {% if api.maintenance_note %}<span class="maint-note">{{ api.maintenance_note }}</span>{% endif %}
+      </div>
       {% endif %}
 
       <div class="api-card-stats">

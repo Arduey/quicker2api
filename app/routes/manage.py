@@ -188,10 +188,29 @@ def api_quicker_test():
 @guard
 def api_list():
     db = get_db()
+    keyword = text(request.args.get("q"), 100)
+    status_filter = text(request.args.get("status"), 16)
+
+    clauses, args = [], []
+    if keyword:
+        clauses.append("(name LIKE %s OR slug LIKE %s)")
+        args += ["%%%s%%" % keyword] * 2
+    if status_filter == "online":
+        clauses.append("status = %s")
+        args.append(quicker.STATUS_ONLINE)
+    elif status_filter == "maintenance":
+        clauses.append("status = %s")
+        args.append(quicker.STATUS_MAINTENANCE)
+    elif status_filter == "offline":
+        clauses.append("status = %s")
+        args.append(quicker.STATUS_OFFLINE)
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+
     rows = db.query(
         "SELECT id, slug, name, action, wait_flag, max_wait_ms, txt_flag, cost_points, "
-        "fields_json, call_count, success_count, status, sort_order, updated_at "
-        "FROM apis ORDER BY sort_order ASC, id DESC"
+        "fields_json, call_count, success_count, status, maintenance_note, sort_order, updated_at "
+        "FROM apis" + where + " ORDER BY sort_order ASC, id DESC",
+        tuple(args),
     )
     for row in rows:
         try:
@@ -199,7 +218,18 @@ def api_list():
         except ValueError:
             row["fields"] = []
         row["param_count"] = len(row["fields"])
-    return render_template("manage/apis.html", apis=rows)
+
+    counts = {
+        "all": db.scalar("SELECT COUNT(*) AS c FROM apis"),
+        "online": db.scalar("SELECT COUNT(*) AS c FROM apis WHERE status = %s",
+                            (quicker.STATUS_ONLINE,)),
+        "maintenance": db.scalar("SELECT COUNT(*) AS c FROM apis WHERE status = %s",
+                                 (quicker.STATUS_MAINTENANCE,)),
+        "offline": db.scalar("SELECT COUNT(*) AS c FROM apis WHERE status = %s",
+                             (quicker.STATUS_OFFLINE,)),
+    }
+    return render_template("manage/apis.html", apis=rows, keyword=keyword,
+                           status_filter=status_filter, counts=counts)
 
 
 def _api_form_context(api: dict | None, errors: list[str], form_fields: list[dict]):
@@ -207,6 +237,7 @@ def _api_form_context(api: dict | None, errors: list[str], form_fields: list[dic
         api=api, errors=errors, form_fields=form_fields,
         shown_fields=form_fields or [],
         max_wait=quicker.MAX_WAIT_LIMIT,
+        status_choices=quicker.STATUS_CHOICES,
     )
 
 
@@ -221,7 +252,8 @@ def _read_api_form(form) -> tuple[dict, list[dict], list[str]]:
         "max_wait_ms": to_int(form.get("max_wait_ms"), 30000, 0, quicker.MAX_WAIT_LIMIT),
         "txt_flag": 1 if str(form.get("txt_flag", "false")).lower() in ("1", "true", "on") else 0,
         "cost_points": to_int(form.get("cost_points"), 0, 0, 1000000),
-        "status": 1 if str(form.get("status", "1")).lower() in ("1", "true", "on") else 0,
+        "status": quicker.normalize_status(form.get("status", quicker.STATUS_ONLINE)),
+        "maintenance_note": text(form.get("maintenance_note"), 200),
         "sort_order": to_int(form.get("sort_order"), 0, -99999, 99999),
     }
     if not data["name"]:
@@ -284,11 +316,13 @@ def api_new():
         if not errors:
             api_id = db.insert(
                 "INSERT INTO apis (slug, name, description, action, wait_flag, max_wait_ms, "
-                "txt_flag, cost_points, fields_json, status, sort_order, created_at, updated_at) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "txt_flag, cost_points, fields_json, status, maintenance_note, sort_order, "
+                "created_at, updated_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (api["slug"], api["name"], api["description"], api["action"], api["wait_flag"],
                  api["max_wait_ms"], api["txt_flag"], api["cost_points"],
-                 json.dumps(fields, ensure_ascii=False), api["status"], api["sort_order"],
+                 json.dumps(fields, ensure_ascii=False), api["status"],
+                 api["maintenance_note"], api["sort_order"],
                  now_ts(), now_ts()),
             )
             flash("API「%s」已创建" % api["name"], "success")
@@ -325,10 +359,11 @@ def api_edit(api_id: int):
             db.execute(
                 "UPDATE apis SET slug=%s, name=%s, description=%s, action=%s, wait_flag=%s, "
                 "max_wait_ms=%s, txt_flag=%s, cost_points=%s, fields_json=%s, status=%s, "
-                "sort_order=%s, updated_at=%s WHERE id=%s",
+                "maintenance_note=%s, sort_order=%s, updated_at=%s WHERE id=%s",
                 (draft["slug"], draft["name"], draft["description"], draft["action"],
                  draft["wait_flag"], draft["max_wait_ms"], draft["txt_flag"], draft["cost_points"],
-                 json.dumps(fields, ensure_ascii=False), draft["status"], draft["sort_order"],
+                 json.dumps(fields, ensure_ascii=False), draft["status"],
+                 draft["maintenance_note"], draft["sort_order"],
                  now_ts(), api_id),
             )
             flash("API「%s」已保存" % draft["name"], "success")
@@ -349,12 +384,156 @@ def api_delete(api_id: int):
     return redirect(url_for("manage.api_list"))
 
 
+# ═════════════════════ API 批量操作 ═════════════════════
+def _batch_ids() -> list[int]:
+    ids = [to_int(v, 0, 1) for v in request.form.getlist("ids")]
+    return [i for i in ids if i > 0]
+
+
+@bp.post("/apis/batch")
+@guard
+def api_batch():
+    """批量操作：设为在线 / 设为维护 / 下线 / 删除。
+
+    用 GET 拿不到，必须是 POST + CSRF；删除会让调用地址立即失效，需二次确认。
+    """
+    db = get_db()
+    ids = _batch_ids()
+    action = text(request.form.get("action"), 24)
+    back = request.referrer or url_for("manage.api_list")
+
+    if not ids:
+        flash("没有选中任何接口", "error")
+        return redirect(back)
+
+    placeholders = ",".join(["%s"] * len(ids))
+    note = text(request.form.get("maintenance_note"), 200)
+
+    if action == "online":
+        affected = db.execute(
+            "UPDATE apis SET status = %s, maintenance_note = '', updated_at = %s "
+            "WHERE id IN (%s)" % ("%s", "%s", placeholders),
+            tuple([quicker.STATUS_ONLINE, now_ts()] + ids))
+        flash("已把 %d 个接口设为「在线」" % int(affected or 0), "success")
+
+    elif action == "maintenance":
+        affected = db.execute(
+            "UPDATE apis SET status = %s, maintenance_note = %s, updated_at = %s "
+            "WHERE id IN (%s)" % ("%s", "%s", "%s", placeholders),
+            tuple([quicker.STATUS_MAINTENANCE, note, now_ts()] + ids))
+        flash("已把 %d 个接口设为「维护中」" % int(affected or 0), "success")
+
+    elif action == "offline":
+        affected = db.execute(
+            "UPDATE apis SET status = %s, maintenance_note = '', updated_at = %s "
+            "WHERE id IN (%s)" % ("%s", "%s", placeholders),
+            tuple([quicker.STATUS_OFFLINE, now_ts()] + ids))
+        flash("已把 %d 个接口设为「下线」" % int(affected or 0), "success")
+
+    elif action == "delete":
+        affected = db.execute(
+            "DELETE FROM apis WHERE id IN (%s)" % placeholders, tuple(ids))
+        flash("已删除 %d 个接口（历史调用日志保留）" % int(affected or 0), "success")
+
+    else:
+        flash("未知的批量操作", "error")
+
+    return redirect(back)
+
+
+@bp.post("/apis/batch-by-filter")
+@guard
+def api_batch_by_filter():
+    """按当前筛选条件批量操作（只影响筛选结果）。"""
+    db = get_db()
+    action = text(request.form.get("action"), 24)
+    keyword = text(request.form.get("q"), 100)
+    status_filter = text(request.form.get("status"), 16)
+    back = url_for("manage.api_list", q=keyword, status=status_filter)
+
+    clauses, args = [], []
+    if keyword:
+        clauses.append("(name LIKE %s OR slug LIKE %s)")
+        args += ["%%%s%%" % keyword] * 2
+    if status_filter == "online":
+        clauses.append("status = %s")
+        args.append(quicker.STATUS_ONLINE)
+    elif status_filter == "maintenance":
+        clauses.append("status = %s")
+        args.append(quicker.STATUS_MAINTENANCE)
+    elif status_filter == "offline":
+        clauses.append("status = %s")
+        args.append(quicker.STATUS_OFFLINE)
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+
+    if not clauses:
+        flash("请先设置筛选条件，避免误操作全部接口", "error")
+        return redirect(url_for("manage.api_list"))
+
+    # 注意：这里不能用 "..." + where % (...) 的写法——% 优先级高于 +，
+    # 会先对 where 做格式化而报错。统一改成先拼好 SQL 再传参。
+    if action == "online":
+        sql = "UPDATE apis SET status = %s, maintenance_note = '', updated_at = %s" + where
+        affected = db.execute(sql, tuple([quicker.STATUS_ONLINE, now_ts()] + args))
+        flash("已把符合条件的 %d 个接口设为「在线」" % int(affected or 0), "success")
+
+    elif action == "maintenance":
+        sql = ("UPDATE apis SET status = %s, maintenance_note = %s, updated_at = %s"
+               + where)
+        affected = db.execute(
+            sql,
+            tuple([quicker.STATUS_MAINTENANCE,
+                   text(request.form.get("maintenance_note"), 200), now_ts()] + args))
+        flash("已把符合条件的 %d 个接口设为「维护中」" % int(affected or 0), "success")
+
+    elif action == "offline":
+        sql = "UPDATE apis SET status = %s, maintenance_note = '', updated_at = %s" + where
+        affected = db.execute(sql, tuple([quicker.STATUS_OFFLINE, now_ts()] + args))
+        flash("已把符合条件的 %d 个接口设为「下线」" % int(affected or 0), "success")
+
+    else:
+        flash("未知的批量操作", "error")
+
+    return redirect(back)
+
+
 @bp.post("/apis/<int:api_id>/toggle")
 @guard
 def api_toggle(api_id: int):
+    """快速切换：在线 ↔ 下线。维护态请用下面的 set-status 精确指定。"""
     db = get_db()
-    db.execute("UPDATE apis SET status = 1 - status, updated_at = %s WHERE id = %s", (now_ts(), api_id))
-    return redirect(url_for("manage.api_list"))
+    row = db.query_one("SELECT status FROM apis WHERE id = %s", (api_id,))
+    if row is None:
+        flash("接口不存在", "error")
+        return redirect(url_for("manage.api_list"))
+
+    current = quicker.normalize_status(row["status"])
+    target = quicker.STATUS_OFFLINE if current == quicker.STATUS_ONLINE else quicker.STATUS_ONLINE
+    db.execute("UPDATE apis SET status = %s, updated_at = %s WHERE id = %s",
+               (target, now_ts(), api_id))
+    flash("接口状态已改为「%s」" % quicker.status_label(target), "success")
+    return redirect(request.referrer or url_for("manage.api_list"))
+
+
+@bp.post("/apis/<int:api_id>/status")
+@guard
+def api_set_status(api_id: int):
+    """精确设置状态（在线 / 维护中 / 下线）。"""
+    db = get_db()
+    target = quicker.normalize_status(request.form.get("status"))
+    note = text(request.form.get("maintenance_note"), 200)
+
+    row = db.query_one("SELECT name FROM apis WHERE id = %s", (api_id,))
+    if row is None:
+        flash("接口不存在", "error")
+        return redirect(url_for("manage.api_list"))
+
+    db.execute(
+        "UPDATE apis SET status = %s, maintenance_note = %s, updated_at = %s WHERE id = %s",
+        (target, note if target == quicker.STATUS_MAINTENANCE else "", now_ts(), api_id),
+    )
+    flash("「%s」已切换为「%s」" % (row["name"], quicker.status_label(target)), "success")
+    return redirect(request.referrer or url_for("manage.api_list"))
 
 
 # ═════════════════════ 用户管理 ═════════════════════

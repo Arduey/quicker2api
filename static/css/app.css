@@ -165,10 +165,16 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   background: rgba(255, 255, 255, .035);
   border: 1px solid #332e26;
 }
+.sidebar .foot .foot-name {
+  color: #f0ece4;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: .1px;
+}
 .sidebar .foot .foot-mail {
-  color: #cfc7ba;
-  font-size: 11.5px;
-  font-weight: 600;
+  color: #8b8275;
+  font-size: 10.5px;
+  margin-top: 1px;
 }
 .sidebar .foot .foot-role {
   display: inline-block;
@@ -516,6 +522,56 @@ pre.code.light {
 @media (hover: none) {
   .api-card-edit { opacity: 1; transform: none; }
 }
+
+/* 维护中的接口卡片：视觉上弱化，但仍可点击查看详情 */
+.api-card.is-maint {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface),
+    var(--surface) 10px,
+    #faf8f4 10px,
+    #faf8f4 20px
+  );
+  border-style: dashed;
+  border-color: #e0d6c4;
+}
+.api-card.is-maint .api-card-name { color: var(--ink-2); }
+.maint-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--warn-soft);
+  border: 1px solid #f0dcb8;
+  color: #8a5300;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+.maint-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex: 0 0 6px;
+  animation: maint-pulse 1.6s ease-in-out infinite;
+}
+@keyframes maint-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+.maint-note {
+  font-weight: 500;
+  color: #a0764a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .maint-dot { animation: none; }
+}
 .api-card {
   display: flex;
   flex-direction: column;
@@ -669,6 +725,36 @@ a.stat-card:hover {
 @media (max-width: 620px) {
   .filter-bar .filter-item input, .filter-bar .filter-item select { width: 100%; }
   .filter-bar .filter-item { flex: 1 1 100%; }
+}
+
+/* ═══════════ 弹窗（批量维护等） ═══════════ */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(30, 26, 20, .42);
+  backdrop-filter: blur(2px);
+}
+.modal-mask[hidden] { display: none; }
+.modal-box {
+  width: 100%;
+  max-width: 420px;
+  padding: 20px 22px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  animation: modal-in .16s ease;
+}
+.modal-box h3 { margin: 0 0 4px; font-size: 15.5px; }
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(-6px) scale(.99); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-box { animation: none; }
 }
 
 /* ═══════════ 空状态插槽 ═══════════ */

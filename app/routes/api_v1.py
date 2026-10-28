@@ -63,12 +63,23 @@ def authenticate():
 
 
 def load_api(slug: str):
+    """按 slug 取接口。
+
+    返回 (api, problem)。problem 取值：
+        None         正常可调用
+        "not_found"  接口不存在
+        "offline"    已下线（用户不可见）
+        "maintenance" 维护中（用户可见但不能调）
+    """
     db = get_db()
     api = db.query_one("SELECT * FROM apis WHERE slug = %s", (slug,))
     if api is None:
         return None, "not_found"
-    if int(api["status"]) != 1:
+    status = quicker.normalize_status(api["status"])
+    if status == quicker.STATUS_OFFLINE:
         return None, "offline"
+    if status == quicker.STATUS_MAINTENANCE:
+        return api, "maintenance"
     return api, None
 
 
@@ -78,6 +89,43 @@ def api_fields(api: dict) -> list[dict]:
     except (TypeError, ValueError):
         fields = []
     return fields if isinstance(fields, list) else []
+
+
+def resolve_callable(slug: str):
+    """取接口并判断能否调用，返回 (api, 错误响应或 None)。
+
+    三种不可用的情况给出不同语义：
+        下线   → 403 offline（用户看不到，属于越权访问）
+        维护中 → 503 maintenance（用户可见，只是暂时不服务）
+        不存在 → 404 not_found
+
+    错误响应是构造好的 Response（状态码已设），调用方直接 return 即可。
+    """
+    from flask import jsonify as _jsonify
+
+    api, problem = load_api(slug)
+
+    if problem == "offline":
+        resp = _jsonify({"ok": False, "error": {"code": "offline", "message": "该接口已下线"}})
+        resp.status_code = 403
+        return None, resp
+
+    if problem == "not_found" or api is None:
+        resp = _jsonify({"ok": False, "error": {"code": "not_found", "message": "接口不存在"}})
+        resp.status_code = 404
+        return None, resp
+
+    if problem == "maintenance":
+        note = (api.get("maintenance_note") or "").strip()
+        message = "该接口正在维护中，暂时无法调用"
+        if note:
+            message += "：" + note
+        resp = _jsonify({"ok": False, "error": {"code": "maintenance", "message": message}})
+        resp.status_code = 503
+        resp.headers["Retry-After"] = "300"
+        return None, resp
+
+    return api, None
 
 
 def collect_values(fields: list[dict]) -> dict:
@@ -224,6 +272,12 @@ def api_schema(slug: str):
     api, problem = load_api(slug)
     if problem == "offline":
         return json_err("该接口已下线", "offline", 403)
+    if problem == "maintenance":
+        note = (api.get("maintenance_note") or "").strip()
+        message = "该接口正在维护中，暂时无法调用"
+        if note:
+            message += "：" + note
+        return json_err(message, "maintenance", 503, retry_after=300)
     if api is None:
         return json_err("接口不存在", "not_found", 404)
     return jsonify({
@@ -233,6 +287,10 @@ def api_schema(slug: str):
             "name": api["name"],
             "description": api["description"],
             "cost_points": int(api["cost_points"]),
+            "status": quicker.normalize_status(api["status"]),
+            "status_label": quicker.status_label(api["status"]),
+            "maintenance_note": api.get("maintenance_note") or "",
+            "callable": quicker.is_callable(api),
             "params": [
                 {"key": f.get("key"), "label": f.get("label"),
                  "required": bool(f.get("required")), "default": f.get("default", ""),
@@ -268,11 +326,9 @@ def call_api(slug: str):
     if err:
         return err
 
-    api, problem = load_api(slug)
-    if problem == "offline":
-        return json_err("该接口已下线", "offline", 403)
-    if api is None:
-        return json_err("接口不存在", "not_found", 404)
+    api, err = resolve_callable(slug)
+    if err is not None:
+        return err
 
     fields = api_fields(api)
     values = collect_values(fields)
@@ -292,11 +348,9 @@ def call_api_get(slug: str):
     if err:
         return err
 
-    api, problem = load_api(slug)
-    if problem == "offline":
-        return json_err("该接口已下线", "offline", 403)
-    if api is None:
-        return json_err("接口不存在", "not_found", 404)
+    api, err = resolve_callable(slug)
+    if err is not None:
+        return err
 
     fields = api_fields(api)
     values = {}

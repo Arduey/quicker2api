@@ -22,11 +22,25 @@
         <p>{{ api.description or '暂无说明' }}</p>
         <div class="flex wrap" style="gap:8px">
           <span class="badge {{ 'brand' if api.cost_points else 'ok' }}">{{ api.cost_points }} 积分/次</span>
+          {% if in_maintenance %}
+          <span class="badge warn">维护中</span>
+          {% else %}
           <span class="badge">失败自动退积分</span>
+          {% endif %}
           <span class="badge">当前余额 {{ user.points }}</span>
         </div>
       </div>
     </div>
+
+    {% if in_maintenance %}
+    <div class="alert warn">
+      <span>
+        该接口正在维护，暂时无法调用。
+        {% if maintenance_note %}原因：{{ maintenance_note }}。{% endif %}
+        维护结束后即可恢复正常使用。
+      </span>
+    </div>
+    {% endif %}
 
     <div class="card">
       <div class="head">
@@ -55,15 +69,25 @@
           </div>
           {% endfor %}
 
+          {% if in_maintenance %}
+          <div class="alert warn small">
+            <span>该接口维护中，调试已禁用。维护结束后可正常发起调用。</span>
+          </div>
+          <button class="btn block" type="button" disabled data-busy-label="维护中">维护中，暂不可调用</button>
+          {% else %}
           <div class="alert warn small">
             <span>在线调试会真实调用一次接口并扣除 {{ api.cost_points }} 积分（失败自动退回）。</span>
           </div>
-
           <button class="btn primary block" type="submit" id="playBtn">发起调用</button>
+          {% endif %}
         </form>
         {% else %}
-        <p class="muted small">这个接口不需要任何参数，直接调用即可。</p>
+        <p class="muted small">这个接口不需要任何参数。</p>
+        {% if in_maintenance %}
+        <button class="btn block" type="button" disabled>维护中，暂不可调用</button>
+        {% else %}
         <button class="btn primary block" type="button" id="playBtnEmpty">发起调用</button>
+        {% endif %}
         {% endif %}
 
         <div id="playResult" class="mt-2"></div>

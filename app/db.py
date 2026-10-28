@@ -307,4 +307,78 @@ def migrate_admin_into_users(target: Database | None = None) -> list[str]:
         db.execute("ALTER TABLE redeem_codes ADD COLUMN exported TINYINT NOT NULL DEFAULT 0")
         notes.append("已给 redeem_codes 表加上 exported 字段")
 
+    # 4. 用户名必填且唯一：先修好历史数据，再加唯一索引
+    #    老库里 nickname 允许为空、允许重复，直接加 UNIQUE 会失败，
+    #    所以这里先把空的补成 email 前缀、重的加数字后缀。
+    fixed = _fix_nicknames_for_unique(db)
+    if fixed:
+        notes.append(fixed)
+
+    if table_exists("users"):
+        try:
+            db.execute("ALTER TABLE users ADD UNIQUE KEY uk_user_nickname (nickname)")
+            notes.append("已给 users.nickname 加上唯一索引")
+        except Exception:  # noqa: BLE001 索引已存在属正常
+            pass
+
+    # 5. apis.maintenance_note（维护说明，维护状态下展示给用户）
+    if table_exists("apis") and not has_column("apis", "maintenance_note"):
+        db.execute("ALTER TABLE apis ADD COLUMN maintenance_note VARCHAR(200) "
+                   "NOT NULL DEFAULT '' AFTER status")
+        notes.append("已给 apis 表加上 maintenance_note 字段")
+
     return notes
+
+
+def _fix_nicknames_for_unique(db) -> str:
+    """把空/重复/不合格的用户名改成合规且唯一的值，为加唯一索引做准备。
+
+    老库里 nickname 可能为空、可重复，也可能长度不足 2（比如邮箱前缀很短），
+    这些都过不了新规则，所以统一修正为「邮箱前缀 + 数字」的形式。
+
+    返回一句人类可读的说明；没有改动则返回空串。
+    """
+    rows = db.query("SELECT id, email, nickname FROM users ORDER BY id")
+    if not rows:
+        return ""
+
+    def compliant(value: str) -> bool:
+        """长度和字符都要合规，避免迁移出不满足新规则的名字。"""
+        if not value or len(value) < 2 or len(value) > 24:
+            return False
+        if value.isdigit():
+            return False
+        bad = set(' \t\r\n/@\\:*?"<>|\'')
+        return not any(ch in bad for ch in value)
+
+    def base_from_email(email: str, uid: int) -> str:
+        """从邮箱前缀造一个至少 2 字符的候选名。"""
+        prefix = (email or "").split("@")[0].strip()
+        prefix = "".join(ch for ch in prefix if ch not in ' \t\r\n/@\\:*?"<>|\'')[:20]
+        if len(prefix) < 2:
+            prefix = "user%d" % uid
+        return prefix
+
+    seen: set[str] = set()
+    changed = 0
+    for row in rows:
+        raw = (row["nickname"] or "").strip()
+        candidate = raw
+        if not compliant(candidate):
+            # 空、太短、太长、纯数字、含非法字符 → 用邮箱前缀重建
+            candidate = base_from_email(row["email"], row["id"])
+        if candidate.lower() in seen:
+            # 重复 → 加数字后缀，直到不冲突
+            base = candidate[:20]
+            index = 2
+            while ("%s%d" % (base, index)).lower() in seen:
+                index += 1
+            candidate = "%s%d" % (base, index)
+        seen.add(candidate.lower())
+        if candidate != raw:
+            db.execute("UPDATE users SET nickname = %s WHERE id = %s", (candidate, row["id"]))
+            changed += 1
+
+    if changed:
+        return "已自动修正 %d 个空/重复/不合规的用户名（保证唯一）" % changed
+    return ""

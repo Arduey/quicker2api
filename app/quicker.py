@@ -46,6 +46,48 @@ OPERATIONS = [
 OPERATION_KEYS = [k for k, _ in OPERATIONS]
 
 
+# ───────────────────────── 接口状态 ─────────────────────────
+# 三态：用单字段表达完整生命周期，避免多字段组合出矛盾状态。
+STATUS_OFFLINE = 0       # 下线：用户完全看不到
+STATUS_ONLINE = 1        # 在线：正常可调用
+STATUS_MAINTENANCE = 2   # 维护中：列表里可见并标注，但拒绝调用
+
+STATUS_LABELS = {
+    STATUS_OFFLINE: "已下线",
+    STATUS_ONLINE: "在线",
+    STATUS_MAINTENANCE: "维护中",
+}
+
+# 后台下拉框 / 批量操作可选的文案
+STATUS_CHOICES = [
+    (STATUS_ONLINE, "在线（用户可正常调用）"),
+    (STATUS_MAINTENANCE, "维护中（用户可见，但调用会被拒绝）"),
+    (STATUS_OFFLINE, "下线（用户完全看不到）"),
+]
+
+
+def normalize_status(value) -> int:
+    """把表单/数据库里的值归一成合法状态。"""
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return STATUS_ONLINE
+    return number if number in STATUS_LABELS else STATUS_ONLINE
+
+
+def status_label(value) -> str:
+    return STATUS_LABELS.get(normalize_status(value), "在线")
+
+
+def is_callable(api: dict) -> bool:
+    """只有「在线」才允许真正调用；维护中和下线都不行。"""
+    return normalize_status(api.get("status")) == STATUS_ONLINE
+
+
+def is_maintenance(api: dict) -> bool:
+    return normalize_status(api.get("status")) == STATUS_MAINTENANCE
+
+
 # ───────────────────────── 全局设置 ─────────────────────────
 GLOBAL_DEFAULTS = {
     "to_user": "",

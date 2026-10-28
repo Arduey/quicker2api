@@ -8,7 +8,8 @@ from flask import (Blueprint, flash, g, jsonify, redirect, render_template,
 from .. import mailer, security
 from ..db import get_db
 from ..util import (client_ip, csrf_valid, ensure_csrf, is_valid_email,
-                    json_err, json_ok, normalize_email, now_ts, setting_get,
+                    json_err, json_ok, nickname_problem, nickname_taken,
+                    normalize_email, normalize_nickname, now_ts, setting_get,
                     text)
 
 bp = Blueprint("auth", __name__)
@@ -114,6 +115,7 @@ def register():
 
     error = None
     email = ""
+    nickname = ""
     if request.method == "POST":
         if not csrf_valid():
             error = "页面已过期，请重试"
@@ -122,12 +124,16 @@ def register():
             password = request.form.get("password") or ""
             password2 = request.form.get("password2") or ""
             code = text(request.form.get("code"), 16)
-            nickname = text(request.form.get("nickname"), 64)
+            nickname = normalize_nickname(request.form.get("nickname"))
 
             if not is_valid_email(email):
                 error = "邮箱格式不正确"
             elif db.query_one("SELECT id FROM users WHERE email = %s", (email,)):
                 error = "该邮箱已注册，请直接登录"
+            elif nickname_problem(nickname):
+                error = nickname_problem(nickname)
+            elif nickname_taken(db, nickname):
+                error = "用户名「%s」已被占用，换一个吧" % nickname
             elif security.password_problem(password):
                 error = security.password_problem(password)
             elif password != password2:
@@ -141,13 +147,14 @@ def register():
                     "INSERT INTO users (email, password_hash, nickname, points, api_key, "
                     "status, email_verified, created_at) VALUES (%s, %s, %s, %s, %s, 1, 1, %s)",
                     (email, security.hash_password(password),
-                     nickname or email.split("@")[0], gift, security.new_api_key(), now_ts()),
+                     nickname, gift, security.new_api_key(), now_ts()),
                 )
                 security.login_user(user_id)
                 flash("注册成功，已赠送 %d 积分" % gift, "success")
                 return redirect(url_for("portal.dashboard"))
 
-    return render_template("register.html", error=error, email=email, gift=gift)
+    return render_template("register.html", error=error, email=email, gift=gift,
+                           nickname=nickname)
 
 
 # ═════════════════════ 发送验证码 ═════════════════════

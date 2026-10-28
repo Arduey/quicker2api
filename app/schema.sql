@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   email VARCHAR(190) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  nickname VARCHAR(64) NOT NULL DEFAULT '',
+  nickname VARCHAR(64) NOT NULL,
   points INT NOT NULL DEFAULT 0,
   api_key VARCHAR(64) NOT NULL,
   status TINYINT NOT NULL DEFAULT 1,
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_login_ip VARCHAR(64) NOT NULL DEFAULT '',
   PRIMARY KEY (id),
   UNIQUE KEY uk_user_email (email),
+  UNIQUE KEY uk_user_nickname (nickname),
   KEY idx_user_admin (is_admin),
   UNIQUE KEY uk_user_apikey (api_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS apis (
   call_count BIGINT NOT NULL DEFAULT 0,
   success_count BIGINT NOT NULL DEFAULT 0,
   status TINYINT NOT NULL DEFAULT 1,
+  maintenance_note VARCHAR(200) NOT NULL DEFAULT '',
   sort_order INT NOT NULL DEFAULT 0,
   created_at INT NOT NULL DEFAULT 0,
   updated_at INT NOT NULL DEFAULT 0,

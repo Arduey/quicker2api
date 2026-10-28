@@ -9,8 +9,8 @@ from flask import (Blueprint, flash, jsonify, redirect, render_template,
 
 from .. import quicker, security
 from ..db import get_db
-from ..util import (client_ip, csrf_valid, json_err, json_ok, now_ts, text,
-                    to_int)
+from ..util import (client_ip, csrf_valid, json_err, json_ok, nickname_problem,
+                    nickname_taken, normalize_nickname, now_ts, text, to_int)
 
 bp = Blueprint("portal", __name__)
 
@@ -75,10 +75,16 @@ def dashboard():
 
 
 def _visible_apis(db) -> list[dict]:
+    """用户可见的接口列表。
+
+    维护中的接口也要返回——用户能看到它、看到「维护中」标注，只是不能调用。
+    已下线的才真正隐藏。
+    """
     rows = db.query(
         "SELECT id, slug, name, description, cost_points, fields_json, "
-        "call_count, success_count, status "
-        "FROM apis WHERE status = 1 ORDER BY sort_order ASC, id ASC"
+        "call_count, success_count, status, maintenance_note "
+        "FROM apis WHERE status IN (%s, %s) ORDER BY sort_order ASC, id ASC",
+        (quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE),
     )
     for row in rows:
         try:
@@ -88,6 +94,10 @@ def _visible_apis(db) -> list[dict]:
         total = int(row.get("call_count") or 0)
         ok_count = int(row.get("success_count") or 0)
         row["success_rate"] = round(ok_count * 100.0 / total, 1) if total else None
+        row["status_code"] = quicker.normalize_status(row.get("status"))
+        row["status_label"] = quicker.status_label(row.get("status"))
+        row["callable"] = quicker.is_callable(row)
+        row["in_maintenance"] = quicker.is_maintenance(row)
     return rows
 
 
@@ -107,7 +117,10 @@ def api_list():
 def api_detail(slug: str):
     viewer = security.current_viewer()
     db = get_db()
-    row = db.query_one("SELECT * FROM apis WHERE slug = %s AND status = 1", (slug,))
+    # 维护中的接口也要能看详情，只是不能调用；下线的才隐藏
+    row = db.query_one(
+        "SELECT * FROM apis WHERE slug = %s AND status IN (%s, %s)",
+        (slug, quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE))
     if row is None:
         flash("接口不存在或已下线", "error")
         return redirect(url_for("portal.api_list"))
@@ -119,7 +132,11 @@ def api_detail(slug: str):
     endpoint = base + "/api/v1/" + row["slug"]
     return render_template("portal/api_detail.html", viewer=viewer, user=viewer,
                            is_admin=security.viewer_is_admin(viewer),
-                           api=row, fields=fields, base=base, endpoint=endpoint)
+                           api=row, fields=fields, base=base, endpoint=endpoint,
+                           status_label=quicker.status_label(row["status"]),
+                           callable_=quicker.is_callable(row),
+                           in_maintenance=quicker.is_maintenance(row),
+                           maintenance_note=row.get("maintenance_note") or "")
 
 
 @bp.post("/u/api/playground")
@@ -131,9 +148,18 @@ def api_playground():
     viewer = security.current_viewer()
     db = get_db()
     slug = text(request.form.get("slug"), 64)
-    api = db.query_one("SELECT * FROM apis WHERE slug = %s AND status = 1", (slug,))
+    # 维护中的接口能看详情，但不该在这里被调起来
+    api = db.query_one(
+        "SELECT * FROM apis WHERE slug = %s AND status IN (%s, %s)",
+        (slug, quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE))
     if api is None:
         return json_err("接口不存在或已下线", "not_found", 404)
+    if quicker.is_maintenance(api):
+        note = (api.get("maintenance_note") or "").strip()
+        message = "该接口正在维护中，无法调试"
+        if note:
+            message += "：" + note
+        return json_err(message, "maintenance", 503)
 
     try:
         fields = json.loads(api["fields_json"] or "[]")
@@ -256,6 +282,29 @@ def profile():
     viewer = security.current_viewer()
     return render_template("portal/profile.html", viewer=viewer, user=viewer,
                            is_admin=security.viewer_is_admin(viewer))
+
+
+@bp.post("/u/profile/nickname")
+@guard
+def change_nickname():
+    viewer = security.current_viewer()
+    db = get_db()
+    nickname = normalize_nickname(request.form.get("nickname"))
+
+    if nickname == (viewer["nickname"] or ""):
+        flash("用户名没有变化", "info")
+    elif nickname_problem(nickname):
+        flash(nickname_problem(nickname), "error")
+    elif nickname_taken(db, nickname, exclude_user_id=viewer["id"]):
+        flash("用户名「%s」已被占用，换一个吧" % nickname, "error")
+    else:
+        try:
+            db.execute("UPDATE users SET nickname = %s WHERE id = %s",
+                       (nickname, viewer["id"]))
+            flash("用户名已更新为「%s」" % nickname, "success")
+        except Exception:  # noqa: BLE001 并发下唯一索引兜底
+            flash("用户名「%s」已被占用，换一个吧" % nickname, "error")
+    return redirect(url_for("portal.profile"))
 
 
 @bp.post("/u/profile/password")

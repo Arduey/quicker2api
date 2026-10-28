@@ -60,10 +60,19 @@
           </div>
           <div class="field">
             <label>状态</label>
-            <select name="status">
-              <option value="1" {{ 'selected' if a.status }}>在线（用户可调用）</option>
-              <option value="0" {{ 'selected' if not a.status }}>下线（用户不可见）</option>
+            <select name="status" id="statusSelect">
+              {% for value, label in status_choices %}
+              <option value="{{ value }}" {{ 'selected' if a.status == value }}>{{ label }}</option>
+              {% endfor %}
             </select>
+            <div class="help">「维护中」时用户仍能看到接口，但调用会返回 503 并显示下面的说明。</div>
+          </div>
+          <div class="field" id="maintNoteField" style="display:none">
+            <label>维护说明（可选）</label>
+            <input type="text" name="maintenance_note" maxlength="200"
+                   value="{{ a.maintenance_note or '' }}"
+                   placeholder="例如：上游服务升级，预计 30 分钟恢复">
+            <div class="help">会展示给用户，说明为什么暂时不可用</div>
           </div>
         </div>
       </div>
@@ -193,6 +202,19 @@
   const maxWaitInput = document.querySelector('[name="max_wait_ms"]');
   const actionInput = document.querySelector('[name="action"]');
   const slugInput = document.getElementById('slugInput');
+  const statusSelect = document.getElementById('statusSelect');
+  const maintNoteField = document.getElementById('maintNoteField');
+
+  // 只有「维护中」才显示维护说明输入框
+  function syncMaintField() {
+    if (!statusSelect || !maintNoteField) return;
+    const isMaint = statusSelect.value === '2';
+    maintNoteField.style.display = isMaint ? '' : 'none';
+  }
+  if (statusSelect) {
+    statusSelect.addEventListener('change', syncMaintField);
+    syncMaintField();
+  }
 
   const initial = {{ shown_fields | tojson }};
 

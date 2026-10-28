@@ -11,7 +11,7 @@
       <div class="body">
         <div class="kv-list">
           <div class="kv"><span class="k">邮箱</span><span class="v">{{ viewer.email }}</span></div>
-          <div class="kv"><span class="k">昵称</span><span class="v">{{ viewer.nickname or '-' }}</span></div>
+          <div class="kv"><span class="k">用户名</span><span class="v">{{ viewer.nickname or '-' }}</span></div>
           <div class="kv">
             <span class="k">身份</span>
             <span class="v">
@@ -22,6 +22,22 @@
           <div class="kv"><span class="k">积分</span><span class="v">{{ viewer.points }}</span></div>
           <div class="kv"><span class="k">注册时间</span><span class="v">{{ viewer.created_at | ts }}</span></div>
         </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head"><h2>修改用户名</h2></div>
+      <div class="body">
+        <form method="post" action="/u/profile/nickname">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <div class="field">
+            <label>用户名</label>
+            <input type="text" name="nickname" value="{{ viewer.nickname or '' }}" required
+                   maxlength="24" placeholder="2-24 字符，全站唯一">
+            <div class="help">这是你在平台上的展示名，必须全站唯一；邮箱仍用于登录。</div>
+          </div>
+          <button class="btn primary" type="submit">保存用户名</button>
+        </form>
       </div>
     </div>
 

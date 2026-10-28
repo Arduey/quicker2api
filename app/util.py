@@ -101,6 +101,49 @@ def text(value, limit: int = 500) -> str:
     return ("" if value is None else str(value)).strip()[:limit]
 
 
+# ───────────────────────── 用户名（昵称） ─────────────────────────
+NICKNAME_MIN = 2
+NICKNAME_MAX = 24
+# 允许中英文、数字、下划线、短横线；禁止空格和易混淆符号
+_NICKNAME_BAD = set(' \t\r\n/@\\:*?"<>|\'')
+
+
+def normalize_nickname(raw) -> str:
+    return text(raw, NICKNAME_MAX * 2)
+
+
+def nickname_problem(nickname: str) -> str | None:
+    """校验用户名，返回错误提示；None 表示合规。
+
+    用户名是用户对外的展示名，要求：必填、2-24 字符、唯一（唯一性由调用方查库）。
+    """
+    value = (nickname or "").strip()
+    if not value:
+        return "用户名不能为空"
+    if len(value) < NICKNAME_MIN:
+        return "用户名至少 %d 个字符" % NICKNAME_MIN
+    if len(value) > NICKNAME_MAX:
+        return "用户名最多 %d 个字符" % NICKNAME_MAX
+    bad = sorted({ch for ch in value if ch in _NICKNAME_BAD})
+    if bad:
+        return "用户名不能包含 %s" % " ".join(bad)
+    if value.isdigit():
+        return "用户名不能是纯数字"
+    return None
+
+
+def nickname_taken(db, nickname: str, exclude_user_id: int | None = None) -> bool:
+    """用户名是否已被占用（不区分大小写，避免「小明」和「小明 」这类混淆）。"""
+    if db is None:
+        return False
+    sql = "SELECT id FROM users WHERE nickname = %s"
+    args: list = [nickname]
+    if exclude_user_id:
+        sql += " AND id <> %s"
+        args.append(int(exclude_user_id))
+    return db.query_one(sql, tuple(args)) is not None
+
+
 # ───────────────────────── 客户端 IP ─────────────────────────
 def client_ip() -> str:
     forwarded = request.headers.get("X-Forwarded-For") or ""
