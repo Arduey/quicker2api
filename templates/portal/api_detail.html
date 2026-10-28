@@ -2,7 +2,14 @@
 {% block title %}{{ api.name }} · {{ site_name }}{% endblock %}
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
 {% block heading %}{{ api.name }}{% endblock %}
-{% block topbar_right %}<a class="btn sm" href="/u/apis">← 返回接口列表</a>{% endblock %}
+{% block topbar_right %}
+<div class="flex" style="gap:8px">
+  {% if viewer.is_admin %}
+  <a class="btn sm primary" href="/admin/apis/{{ api.id }}" title="到后台修改这个接口的配置">✎ 编辑此接口</a>
+  {% endif %}
+  <a class="btn sm" href="/u/apis">← 返回接口列表</a>
+</div>
+{% endblock %}
 
 {% block content %}
 {% set endpoint = endpoint %}
@@ -22,7 +29,14 @@
     </div>
 
     <div class="card">
-      <div class="head"><h2>在线调试</h2></div>
+      <div class="head">
+        <h2>在线调试</h2>
+        {% if viewer.is_admin %}
+        <div class="actions">
+          <a class="btn sm" href="/admin/apis/{{ api.id }}">编辑参数</a>
+        </div>
+        {% endif %}
+      </div>
       <div class="body">
         {% if fields %}
         <form id="playForm" data-no-busy>
