@@ -268,6 +268,9 @@ td.nowrap, th.nowrap { white-space: nowrap; }
 
 /* ═══════════ 杂项 ═══════════ */
 .muted { color: var(--ink-3); }
+.text-ok { color: var(--ok); }
+.text-warn { color: var(--warn); }
+.text-bad { color: var(--danger); }
 .small { font-size: 12px; }
 .mt-0 { margin-top: 0; } .mt-1 { margin-top: 8px; } .mt-2 { margin-top: 16px; } .mt-3 { margin-top: 24px; }
 .mb-0 { margin-bottom: 0; } .mb-1 { margin-bottom: 8px; } .mb-2 { margin-bottom: 16px; }
@@ -399,6 +402,80 @@ pre.code.light {
   display: grid; grid-template-columns: 1.1fr 1.1fr 1.7fr 74px 34px; gap: 8px;
   font-size: 11px; font-weight: 700; color: var(--ink-3);
   letter-spacing: .4px; padding: 0 10px 4px;
+}
+
+/* ═══════════ 用户中心：可用接口卡片 ═══════════ */
+.api-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+  gap: 12px;
+}
+.api-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 15px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color .14s, box-shadow .14s, transform .14s;
+}
+.api-card:hover {
+  text-decoration: none;
+  border-color: #f0c3a6;
+  box-shadow: 0 6px 18px rgba(60, 48, 24, .09);
+  transform: translateY(-2px);
+}
+.api-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.api-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+.api-card-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.api-card-stats {
+  display: flex;
+  gap: 18px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.api-stat { display: flex; flex-direction: column; gap: 1px; }
+.api-stat-num {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.api-stat-num.good { color: var(--ok); }
+.api-stat-num.warn { color: var(--warn); }
+.api-stat-num.bad { color: var(--danger); }
+.api-stat-num.muted { color: var(--ink-3); font-weight: 700; }
+.api-stat-label {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  letter-spacing: .2px;
 }
 
 /* ═══════════ 空状态插槽 ═══════════ */

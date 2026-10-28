@@ -52,7 +52,7 @@
   <div class="body flush">
     {% if apis %}
     <table>
-      <thead><tr><th>接口</th><th class="num">单次积分</th><th class="num hide-sm">参数</th><th class="num hide-sm">调用量</th><th></th></tr></thead>
+      <thead><tr><th>接口</th><th class="num">单次积分</th><th class="num">调用次数</th><th class="num">成功率</th><th></th></tr></thead>
       <tbody>
         {% for api in apis %}
         <tr>
@@ -61,8 +61,14 @@
             <div class="muted small truncate" style="max-width:420px">{{ api.description or '' }}</div>
           </td>
           <td class="num">{{ api.cost_points }}</td>
-          <td class="num hide-sm">{{ api.fields | length }}</td>
-          <td class="num hide-sm">{{ api.call_count }}</td>
+          <td class="num">{{ api.call_count }}</td>
+          <td class="num">
+            {% if api.success_rate is none %}
+            <span class="muted">—</span>
+            {% else %}
+            <span class="{{ 'text-ok' if api.success_rate >= 90 else ('text-warn' if api.success_rate >= 60 else 'text-bad') }}">{{ api.success_rate }}%</span>
+            {% endif %}
+          </td>
           <td class="nowrap"><a class="btn sm primary" href="/u/apis/{{ api.slug }}">调用 / 调试</a></td>
         </tr>
         {% endfor %}

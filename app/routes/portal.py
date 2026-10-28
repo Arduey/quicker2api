@@ -69,7 +69,8 @@ def dashboard():
 
 def _visible_apis(db) -> list[dict]:
     rows = db.query(
-        "SELECT id, slug, name, description, cost_points, fields_json, call_count, status "
+        "SELECT id, slug, name, description, cost_points, fields_json, "
+        "call_count, success_count, status "
         "FROM apis WHERE status = 1 ORDER BY sort_order ASC, id ASC"
     )
     for row in rows:
@@ -77,6 +78,9 @@ def _visible_apis(db) -> list[dict]:
             row["fields"] = json.loads(row["fields_json"] or "[]")
         except ValueError:
             row["fields"] = []
+        total = int(row.get("call_count") or 0)
+        ok_count = int(row.get("success_count") or 0)
+        row["success_rate"] = round(ok_count * 100.0 / total, 1) if total else None
     return rows
 
 
