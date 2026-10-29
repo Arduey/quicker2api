@@ -1,65 +1,131 @@
+{#
+  统一图标集：24×24 线性图标，stroke-width 1.75，圆角端点。
+  用 SVG 而不是 Unicode 符号，保证任何字体/系统下渲染一致。
+#}
+{% macro icon(name) -%}
+<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+     aria-hidden="true" focusable="false">
+{%- if name == 'dashboard' -%}
+  <rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/>
+  <rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
+{%- elif name == 'api' -%}
+  <path d="M4 8h4V4"/><path d="M20 16h-4v4"/>
+  <path d="M16 8h4V4"/><path d="M8 16H4v4"/>
+  <rect x="8" y="8" width="8" height="8" rx="1.5"/>
+{%- elif name == 'logs' -%}
+  <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9L20 9.5v9A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z"/>
+  <path d="M14 4v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>
+{%- elif name == 'ticket' -%}
+  <path d="M3 9.5V6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v3a2.5 2.5 0 0 0 0 5v3A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5v-3a2.5 2.5 0 0 0 0-5z"/>
+  <path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/>
+{%- elif name == 'profile' -%}
+  <circle cx="12" cy="8" r="3.5"/>
+  <path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>
+{%- elif name == 'gauge' -%}
+  <path d="M3.5 18a9 9 0 1 1 17 0"/>
+  <path d="M12 13.5 15.5 10"/><circle cx="12" cy="14.5" r="1.4"/>
+{%- elif name == 'server' -%}
+  <rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/>
+  <path d="M7 7.5h.01"/><path d="M7 16.5h.01"/>
+{%- elif name == 'users' -%}
+  <circle cx="9" cy="8" r="3.2"/><path d="M3 19a6 6 0 0 1 12 0"/>
+  <path d="M16.5 5.2a3.2 3.2 0 0 1 0 5.6"/><path d="M18 19a5.6 5.6 0 0 0-2-4.1"/>
+{%- elif name == 'tickets' -%}
+  <path d="M6 4.5h9L19 8v11.5A1.5 1.5 0 0 1 17.5 21h-11A1.5 1.5 0 0 1 5 19.5V6A1.5 1.5 0 0 1 6.5 4.5z" transform="translate(0,-1) scale(0.92) translate(1,1)"/>
+  <path d="M9 10h6"/><path d="M9 14h4"/>
+{%- elif name == 'archive' -%}
+  <rect x="3" y="4" width="18" height="4.5" rx="1.5"/>
+  <path d="M4.5 8.5V19A1.5 1.5 0 0 0 6 20.5h12a1.5 1.5 0 0 0 1.5-1.5V8.5"/>
+  <path d="M10 12.5h4"/>
+{%- elif name == 'sliders' -%}
+  <path d="M5 4v6"/><path d="M5 14v6"/><circle cx="5" cy="12" r="2"/>
+  <path d="M12 4v2"/><path d="M12 10v10"/><circle cx="12" cy="8" r="2"/>
+  <path d="M19 4v8"/><path d="M19 16v4"/><circle cx="19" cy="14" r="2"/>
+{%- elif name == 'logout' -%}
+  <path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/>
+  <path d="M15 16l4-4-4-4"/><path d="M19 12H9"/>
+{%- elif name == 'chevron' -%}
+  <path d="M6 9l6 6 6-6"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
+
+
 <aside class="sidebar">
   <div class="brand">
     <span class="dot">Q</span>
-    <span class="truncate">{{ site_name }}</span>
+    <div class="brand-text">
+      <span class="brand-name truncate">{{ site_name }}</span>
+      <span class="brand-sub">{{ '管理控制台' if viewer and viewer.is_admin else '用户中心' }}</span>
+    </div>
   </div>
 
   {# 管理员和普通用户看到的是同一套菜单，管理员只是多一个「管理」分组 #}
-  <div class="nav-label">我的</div>
-  <a href="/u" class="{{ 'active' if request.path.rstrip('/') in ['/u', ''] }}">
-    <span class="i">◉</span> 概览
-  </a>
-  <a href="/u/apis" class="{{ 'active' if request.path.startswith('/u/apis') }}">
-    <span class="i">⌘</span> 可用接口
-  </a>
-  <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
-    <span class="i">≣</span> 调用记录
-  </a>
-  <a href="/u/redeem" class="{{ 'active' if request.path.startswith('/u/redeem') }}">
-    <span class="i">▦</span> 卡密兑换
-  </a>
-  <a href="/u/profile" class="{{ 'active' if request.path.startswith('/u/profile') }}">
-    <span class="i">⚙</span> 账号设置
-  </a>
+  <nav class="nav-group">
+    <div class="nav-label">我的</div>
+    <a href="/u" class="{{ 'active' if request.path.rstrip('/') in ['/u', ''] }}">
+      {{ icon('dashboard') }}<span>概览</span>
+    </a>
+    <a href="/u/apis" class="{{ 'active' if request.path.startswith('/u/apis') }}">
+      {{ icon('api') }}<span>可用接口</span>
+    </a>
+    <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
+      {{ icon('logs') }}<span>调用记录</span>
+    </a>
+    <a href="/u/redeem" class="{{ 'active' if request.path.startswith('/u/redeem') }}">
+      {{ icon('ticket') }}<span>卡密兑换</span>
+    </a>
+    <a href="/u/profile" class="{{ 'active' if request.path.startswith('/u/profile') }}">
+      {{ icon('profile') }}<span>账号设置</span>
+    </a>
+  </nav>
 
   {% if viewer and viewer.is_admin %}
-  <div class="nav-label">管理</div>
-  <a href="/admin" class="{{ 'active' if request.path.rstrip('/') in ['/admin', '/admin/'] }}">
-    <span class="i">◈</span> 管理概览
-  </a>
-  <a href="/admin/apis" class="{{ 'active' if request.path.startswith('/admin/apis') }}">
-    <span class="i">⌘</span> 接口管理
-  </a>
-  <a href="/admin/users" class="{{ 'active' if request.path.startswith('/admin/users') }}">
-    <span class="i">☺</span> 用户管理
-  </a>
-  <a href="/admin/cards" class="{{ 'active' if request.path.startswith('/admin/cards') }}">
-    <span class="i">▦</span> 卡密批次
-  </a>
-  <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') }}">
-    <span class="i">≣</span> 全站日志
-  </a>
-  <a href="/admin/settings" class="{{ 'active' if request.path.startswith('/admin/settings') }}">
-    <span class="i">⚙</span> 全局设置
-  </a>
+  <nav class="nav-group">
+    <div class="nav-label">管理</div>
+    <a href="/admin" class="{{ 'active' if request.path.rstrip('/') in ['/admin', '/admin/'] }}">
+      {{ icon('gauge') }}<span>管理概览</span>
+    </a>
+    <a href="/admin/apis" class="{{ 'active' if request.path.startswith('/admin/apis') }}">
+      {{ icon('server') }}<span>接口管理</span>
+    </a>
+    <a href="/admin/users" class="{{ 'active' if request.path.startswith('/admin/users') }}">
+      {{ icon('users') }}<span>用户管理</span>
+    </a>
+    <a href="/admin/cards" class="{{ 'active' if request.path.startswith('/admin/cards') }}">
+      {{ icon('archive') }}<span>卡密批次</span>
+    </a>
+    <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') }}">
+      {{ icon('logs') }}<span>全站日志</span>
+    </a>
+    <a href="/admin/settings" class="{{ 'active' if request.path.startswith('/admin/settings') }}">
+      {{ icon('sliders') }}<span>全局设置</span>
+    </a>
+  </nav>
   {% endif %}
 
   <div class="spacer"></div>
+
   <div class="foot">
-    <div class="foot-name truncate">{{ viewer.nickname or viewer.email if viewer else '' }}</div>
-    {% if viewer and viewer.nickname %}
-    <div class="foot-mail truncate">{{ viewer.email }}</div>
-    {% endif %}
-    <div>
-      {% if viewer %}
-      <span class="foot-role">{{ '管理员' if viewer.is_admin else '用户' }}</span>
-      <span class="muted" style="margin-left:6px">{{ viewer.points }} 积分</span>
-      {% endif %}
+    <div class="foot-row">
+      <span class="avatar">{{ (viewer.nickname or viewer.email or 'U')[0] | upper if viewer else 'U' }}</span>
+      <div class="foot-text">
+        <div class="foot-name truncate">{{ viewer.nickname or viewer.email if viewer else '' }}</div>
+        <div class="foot-meta">
+          {% if viewer %}
+          <span class="foot-role {{ 'is-admin' if viewer.is_admin }}">{{ '管理员' if viewer.is_admin else '用户' }}</span>
+          <span class="foot-dot">·</span>
+          <span>{{ viewer.points }} 积分</span>
+          {% endif %}
+        </div>
+      </div>
+      <form method="post" action="/logout" style="margin:0">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="foot-logout" type="submit" title="退出登录" aria-label="退出登录">
+          {{ icon('logout') }}
+        </button>
+      </form>
     </div>
-    <form method="post" action="/logout" style="margin-top:8px">
-      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-      <button class="btn ghost sm" type="submit"
-              style="color:#cfc7ba;padding:2px 0;font-size:12px">退出登录</button>
-    </form>
   </div>
 </aside>
