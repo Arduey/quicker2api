@@ -483,27 +483,24 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 .field.inline { display: flex; align-items: center; gap: 10px; }
 .field.inline > label { margin: 0; }
 
-/* 在线调试：参数名与输入框同一行，键名占固定宽度，输入框撑满剩余。
-   hint 只作为 placeholder 提示，不预填成 value。 */
+/* 在线调试：参数名与输入框同一行。
+   键名宽度由内容决定（不设 min-width），避免短参数名后面拖出一大截空白；
+   输入框吃掉剩余空间。 */
 .field-inline-play {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 10px;
 }
 .field-inline-play > label {
   flex: 0 0 auto;
-  min-width: 108px;
-  max-width: 200px;
   margin: 0;
   display: flex;
   align-items: baseline;
-  gap: 4px;
-  overflow: hidden;
+  gap: 3px;
+  white-space: nowrap;
 }
 .field-inline-play > label .inline-code {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .field-inline-play > input,
@@ -1265,6 +1262,36 @@ a.stat-card:hover {
 .delta.up { background: var(--ok-soft); color: var(--ok); }
 .delta.down { background: var(--danger-soft); color: var(--danger); }
 .delta.flat { background: #f0f0f0; color: var(--ink-3); }
+
+/* ═══════════ 请求示例的语言切换 ═══════════ */
+.lang-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  background: #f0f0f0;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+}
+.lang-tabs button {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 13px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+.lang-tabs button:hover { color: var(--ink-2); }
+.lang-tabs button.on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
 
 /* ═══════════ 区间切换 ═══════════ */
 .range-tabs {

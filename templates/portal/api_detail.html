@@ -133,13 +133,20 @@
 
     <div class="card">
       <div class="head">
-        <h2>cURL 示例</h2>
+        <h2>请求示例</h2>
         <div class="actions">
-          <button class="btn sm" type="button" id="copyCurl">复制</button>
+          <button class="btn sm" type="button" id="copySnippet">复制</button>
         </div>
       </div>
       <div class="body">
-        <pre class="code" id="curlBox" style="max-height:320px;overflow:auto"></pre>
+        <div class="lang-tabs" id="langTabs">
+          <button type="button" class="on" data-lang="curl">cURL</button>
+          <button type="button" data-lang="python">Python</button>
+          <button type="button" data-lang="node">JavaScript</button>
+          <button type="button" data-lang="php">PHP</button>
+          <button type="button" data-lang="http">HTTP</button>
+        </div>
+        <pre class="code mt-1" id="snippetBox" style="max-height:340px;overflow:auto"></pre>
       </div>
     </div>
 
@@ -203,20 +210,93 @@
   const apiKey = {{ user.api_key | tojson }};
   const fieldDefs = {{ fields | tojson }};
 
-  /* ── cURL 示例 ── */
+  /* ── 请求示例：多语言切换 ── */
   const sample = {};
   fieldDefs.forEach(function (f) {
     sample[f.key] = f.default || f.key;
   });
   const bodyJson = JSON.stringify(sample);
-  document.getElementById('curlBox').textContent =
-    'curl -X POST ' + endpoint + ' \\\n' +
-    '  -H "Authorization: Bearer ' + apiKey + '" \\\n' +
-    '  -H "Content-Type: application/json" \\\n' +
-    "  -d '" + bodyJson + "'";
+  const bodyPretty = JSON.stringify(sample, null, 2);
 
-  document.getElementById('copyCurl').addEventListener('click', function () {
-    TB.copy(document.getElementById('curlBox').textContent, 'cURL 示例已复制');
+  const SNIPPETS = {
+    curl: function () {
+      return 'curl -X POST ' + endpoint + ' \\\n' +
+        '  -H "Authorization: Bearer ' + apiKey + '" \\\n' +
+        '  -H "Content-Type: application/json" \\\n' +
+        "  -d '" + bodyJson + "'";
+    },
+    python: function () {
+      return 'import requests\n\n' +
+        'resp = requests.post(\n' +
+        '    "' + endpoint + '",\n' +
+        '    headers={\n' +
+        '        "Authorization": "Bearer ' + apiKey + '",\n' +
+        '        "Content-Type": "application/json",\n' +
+        '    },\n' +
+        '    json=' + bodyPretty.replace(/\n/g, "\n    ") + ',\n' +
+        '    timeout=60,\n' +
+        ')\n\n' +
+        'print(resp.status_code)\n' +
+        'print(resp.json())';
+    },
+    node: function () {
+      return 'const resp = await fetch("' + endpoint + '", {\n' +
+        '  method: "POST",\n' +
+        '  headers: {\n' +
+        '    "Authorization": "Bearer ' + apiKey + '",\n' +
+        '    "Content-Type": "application/json",\n' +
+        '  },\n' +
+        '  body: JSON.stringify(' + bodyPretty.replace(/\n/g, "\n  ") + '),\n' +
+        '});\n\n' +
+        'console.log(resp.status, await resp.json());';
+    },
+    php: function () {
+      return '<?php\n' +
+        '$ch = curl_init("' + endpoint + '");\n' +
+        'curl_setopt_array($ch, [\n' +
+        '    CURLOPT_POST           => true,\n' +
+        '    CURLOPT_RETURNTRANSFER => true,\n' +
+        '    CURLOPT_TIMEOUT        => 60,\n' +
+        '    CURLOPT_HTTPHEADER     => [\n' +
+        '        "Authorization: Bearer ' + apiKey + '",\n' +
+        '        "Content-Type: application/json",\n' +
+        '    ],\n' +
+        "    CURLOPT_POSTFIELDS     => '" + bodyJson.replace(/'/g, "\\'") + "',\n" +
+        ']);\n\n' +
+        '$body = curl_exec($ch);\n' +
+        '$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);\n' +
+        'curl_close($ch);\n\n' +
+        'echo $code, "\\n", $body;';
+    },
+    http: function () {
+      return 'POST ' + endpoint.replace(/^https?:\/\/[^/]+/, '') + ' HTTP/1.1\n' +
+        'Host: ' + endpoint.replace(/^https?:\/\//, '').split('/')[0] + '\n' +
+        'Authorization: Bearer ' + apiKey + '\n' +
+        'Content-Type: application/json\n\n' + bodyJson;
+    },
+  };
+
+  const snippetBox = document.getElementById('snippetBox');
+  const langTabs = document.getElementById('langTabs');
+
+  function renderSnippet(lang) {
+    const build = SNIPPETS[lang] || SNIPPETS.curl;
+    snippetBox.textContent = build();
+  }
+  renderSnippet('curl');
+
+  langTabs.addEventListener('click', function (ev) {
+    const btn = ev.target.closest('button[data-lang]');
+    if (!btn) return;
+    langTabs.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('on', b === btn);
+    });
+    renderSnippet(btn.getAttribute('data-lang'));
+  });
+
+  document.getElementById('copySnippet').addEventListener('click', function () {
+    const label = langTabs.querySelector('button.on');
+    TB.copy(snippetBox.textContent, (label ? label.textContent : '示例') + ' 已复制');
   });
 
   /* ── 在线调试 ── */
