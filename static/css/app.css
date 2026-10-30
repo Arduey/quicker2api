@@ -1451,18 +1451,29 @@ mark {
   gap: 8px;
 }
 .api-card-name {
+  /* 用 flex 居中而不是靠行盒：
+     原来 line-height:1.4 让行盒 19.6px 大于字号 14px，
+     汉字墨迹在行盒里会偏上（字体 ascent 比 descent 大），
+     实测文字中线比徽章高 1px。改成 flex + line-height:1，
+     行盒高度收缩到字号，文字墨迹就能与徽章落在同一条中线上。 */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-size: 14px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1;
   letter-spacing: -.01em;
   color: var(--ink);
 }
 
 /* 最近 7 天新增的接口：名字后面的 NEW 小标签。
-   黑底白字与主色一致，字号小、紧贴名字，不抢视线。 */
+   黑底白字与主色一致，字号小、紧贴名字，不抢视线。
+   margin-left 已去掉——父级 .api-card-name 是 flex + gap:6px，
+   再留 margin 会变成 12px。 */
 .api-new {
   display: inline-block;
-  margin-left: 6px;
+  flex: 0 0 auto;
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--brand);
