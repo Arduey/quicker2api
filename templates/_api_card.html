@@ -94,8 +94,8 @@
 
 
 {#- 搜索框。主页和接口目录共用。
-    表单仍带 action/method，JS 不可用时回车也能正常提交（渐进增强）；
-    JS 在时由 app.js 拦截，改为本地过滤，不刷新页面。 -#}
+    没有搜索按钮：输入即时过滤（由 app.js 接管）。
+    表单仍保留 action/method，作为无 JS 时的降级（回车提交）。 -#}
 {% macro search_bar(action, keyword='', category='', total=0) -%}
 <form class="api-filter" method="get" action="{{ action }}" data-api-search>
   <div class="api-filter-search">
@@ -107,7 +107,9 @@
            placeholder="搜索接口名称或说明" autocomplete="off">
     {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
   </div>
-  <button class="btn sm" type="submit">搜索</button>
+  {#- 视觉上不显示，但不能删：HTML 规范里表单没有 submit 按钮时，
+      回车不会触发隐式提交，无 JS 的降级就失效了。 -#}
+  <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">搜索</button>
   <button class="btn sm ghost" type="button" data-api-clear hidden>清除</button>
   <span class="api-filter-count" data-api-count></span>
 </form>

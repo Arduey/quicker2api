@@ -401,6 +401,8 @@
       // 未分类在目录里是哨兵 __none__，而卡片 data-cat 是空串，比较前要还原
       const wantCat = activeCat === "__none__" ? "" : activeCat;
       let shown = 0;
+      // 关键词命中数按分类累计，用来实时刷新目录里的数字
+      const hit = {};
 
       cards.forEach(function (card) {
         const okCat = !activeCat || card._cat === wantCat;
@@ -408,6 +410,7 @@
         if (kw) {
           const hay = (card._name + "\n" + card._desc).toLowerCase();
           okKw = hay.indexOf(kw.toLowerCase()) >= 0;
+          if (okKw) hit[card._cat] = (hit[card._cat] || 0) + 1;
         }
         const visible = okCat && okKw;
         card.hidden = !visible;
@@ -418,9 +421,25 @@
         if (card._descEl) card._descEl.innerHTML = mark(card._desc, kw);
       });
 
-      // 分类导航高亮
+      // 分类导航：高亮 + 数字跟随关键词
+      // 搜索时数字变成「该分类下的命中数」，没有命中的分类直接置灰，
+      // 这样一眼能看出关键词落在哪个分类里。
       nav.querySelectorAll(".api-cat").forEach(function (a) {
-        a.classList.toggle("on", (a.getAttribute("data-cat") || "") === activeCat);
+        const key = a.getAttribute("data-cat") || "";
+        a.classList.toggle("on", key === activeCat);
+
+        const numEl = a.querySelector(".api-cat-num");
+        if (!numEl) return;
+        if (!numEl.dataset.total) numEl.dataset.total = numEl.textContent.trim();
+        if (!kw) {
+          numEl.textContent = numEl.dataset.total;
+          a.classList.remove("is-empty");
+          return;
+        }
+        // 「全部接口」= 总命中数；其余按各自分类取
+        const n = key === "" ? shown : (hit[key === "__none__" ? "" : key] || 0);
+        numEl.textContent = n;
+        a.classList.toggle("is-empty", n === 0);
       });
 
       if (countEl) {
@@ -462,6 +481,11 @@
       let timer = null;
       input.addEventListener("input", function () {
         keyword = input.value;
+        // 搜索时自动回到「全部接口」：否则在某个分类下输入，
+        // 会被那个分类同时约束，搜到的东西看起来就「没跟上」。
+        if (keyword.trim() && activeCat) {
+          activeCat = "";
+        }
         clearTimeout(timer);
         // 输入时防抖，避免每个字符都重排全部卡片
         timer = setTimeout(function () { apply(); syncUrl(); }, 120);
@@ -473,6 +497,7 @@
       searchForm.addEventListener("submit", function (ev) {
         ev.preventDefault();
         if (input) keyword = input.value;
+        if (keyword.trim() && activeCat) activeCat = "";
         apply();
         syncUrl();
       });
@@ -490,14 +515,18 @@
     const params = new URLSearchParams(window.location.search);
     const initCat = params.get("category");
     const initKw = params.get("q");
-    if (initCat !== null) activeCat = initCat;
-    else {
-      const on = nav.querySelector(".api-cat.on");
-      activeCat = on ? (on.getAttribute("data-cat") || "") : "";
-    }
     if (initKw !== null) {
       keyword = initKw;
       if (input) input.value = initKw;
+    }
+    // 有关键词时一律落在「全部接口」，避免 q 与 category 叠加后搜不到东西
+    if (keyword.trim()) {
+      activeCat = "";
+    } else if (initCat !== null) {
+      activeCat = initCat;
+    } else {
+      const on = nav.querySelector(".api-cat.on");
+      activeCat = on ? (on.getAttribute("data-cat") || "") : "";
     }
     apply();
   })();
