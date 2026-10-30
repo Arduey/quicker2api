@@ -154,19 +154,20 @@ def _register_hooks(app: Flask) -> None:
         def _nav_badges():
             """侧边栏右侧的小徽章：当日调用数、维护中接口数。
 
-            普通用户只看自己的当日调用；管理员额外看到维护中的接口数量
-            （数字为 0 时不显示，避免满屏无意义的 0）。
+            普通用户只看自己的当日调用；管理员额外看到维护中的接口数量。
+            一律返回数字（包括 0）——之前把 0 过滤掉，结果新站点什么都不显示，
+            用户会以为功能没做。0 也要显示，只是样式上弱化。
             """
             if viewer is None:
-                return {}
+                return {"calls_today": None, "maintenance": None}
             from .db import get_db
             from . import quicker as _quicker
 
             db = get_db()
             if db is None:
-                return {}
+                return {"calls_today": None, "maintenance": None}
 
-            badges = {}
+            badges = {"calls_today": 0, "maintenance": None}
             uid = viewer.get("id")
             if uid:
                 badges["calls_today"] = int(db.scalar(
@@ -177,7 +178,7 @@ def _register_hooks(app: Flask) -> None:
                 badges["maintenance"] = int(db.scalar(
                     "SELECT COUNT(*) AS c FROM apis WHERE status = %s",
                     (_quicker.STATUS_MAINTENANCE,)) or 0)
-            return {k: v for k, v in badges.items() if v}
+            return badges
 
         return {
             "csrf_token": ensure_csrf,

@@ -219,6 +219,7 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 /* 徽章：圆形小绿点（对应规范中的 Inbox 数字徽章） */
 .sidebar .nav-badge {
   margin-left: auto;
+  flex: 0 0 auto;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
@@ -232,10 +233,23 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
+/* 数值为 0 时保留位置但视觉弱化，让用户知道这里有个计数 */
+.sidebar .nav-badge.is-zero {
+  background: #e9ece6;
+  color: #98a194;
+  font-weight: 600;
+}
 /* 维护类徽章用警示色，和「调用数」区分开 */
 .sidebar .nav-badge.is-warn {
   background: var(--warn-soft);
   color: var(--warn);
+}
+/* 放在 is-warn 之后，保证「0」始终是弱化的灰色，不会被警示色覆盖成假告警 */
+.sidebar .nav-badge.is-zero,
+.sidebar .nav-badge.is-warn.is-zero {
+  background: #e9ece6;
+  color: #98a194;
+  font-weight: 600;
 }
 
 .sidebar .spacer { flex: 1; min-height: 20px; }

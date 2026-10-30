@@ -66,8 +66,9 @@
     </a>
     <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
       {{ icon('logs') }}<span class="nav-text">调用明细</span>
-      {% if nav_badges and nav_badges.calls_today %}
-      <span class="nav-badge" title="近 24 小时调用次数">{{ nav_badges.calls_today }}</span>
+      {% if nav_badges and nav_badges.calls_today is not none %}
+      <span class="nav-badge {{ 'is-zero' if not nav_badges.calls_today }}"
+            title="近 24 小时调用次数">{{ nav_badges.calls_today }}</span>
       {% endif %}
     </a>
     <a href="/u/redeem" class="{{ 'active' if request.path.startswith('/u/redeem') }}">
@@ -86,8 +87,9 @@
     </a>
     <a href="/admin/apis" class="{{ 'active' if request.path.startswith('/admin/apis') }}">
       {{ icon('server') }}<span class="nav-text">接口配置</span>
-      {% if nav_badges and nav_badges.maintenance %}
-      <span class="nav-badge is-warn" title="维护中的接口数量">{{ nav_badges.maintenance }}</span>
+      {% if nav_badges and nav_badges.maintenance is not none %}
+      <span class="nav-badge is-warn {{ 'is-zero' if not nav_badges.maintenance }}"
+            title="维护中的接口数量">{{ nav_badges.maintenance }}</span>
       {% endif %}
     </a>
     <a href="/admin/users" class="{{ 'active' if request.path.startswith('/admin/users') }}">
