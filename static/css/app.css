@@ -464,6 +464,9 @@ input:disabled, select:disabled, textarea:disabled { background: #f3f1ec; color:
 .btn.block { width: 100%; }
 .btn.lg { padding: 11px 24px; font-size: 14.5px; }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+/* 表单底部的主操作放右侧，符合「填完往下走」的阅读动线；
+   左侧留给次要操作（取消/重置之类）。 */
+.btn-row.end { justify-content: flex-end; }
 
 /* ═══════════ 表格 ═══════════ */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
