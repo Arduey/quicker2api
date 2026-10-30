@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}可用接口 · {{ site_name }}{% endblock %}
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
-{% block heading %}可用接口{% endblock %}
+{% block heading %}接口目录{% endblock %}
+{% block subheading %}<p class="page-lead">这里是可以调用的接口。点开任意一个，能填参数直接试、也能看到调用方式。</p>{% endblock %}
 
 {% block content %}
 {% if viewer.is_admin %}

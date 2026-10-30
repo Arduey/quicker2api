@@ -2,6 +2,7 @@
 {% block title %}{{ api.name }} · {{ site_name }}{% endblock %}
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
 {% block heading %}{{ api.name }}{% endblock %}
+{% block subheading %}<p class="page-lead">填好参数就能直接调一次，右侧是把它接进自己程序的完整写法。</p>{% endblock %}
 {% block topbar_right %}
 <div class="flex" style="gap:8px">
   {% if viewer.is_admin %}

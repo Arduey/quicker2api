@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}API 管理 · {{ site_name }}{% endblock %}
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
-{% block heading %}API 管理{% endblock %}
+{% block heading %}接口配置{% endblock %}
+{% block subheading %}<p class="page-lead">创建、修改接口的推送参数和对外形态；维护中的接口对用户可见但不可调用。</p>{% endblock %}
 {% block topbar_right %}
 <a class="btn primary sm" href="/admin/apis/new">+ 新建 API</a>
 {% endblock %}

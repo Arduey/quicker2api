@@ -1,9 +1,9 @@
 {#
-  统一图标集：24×24 线性图标，stroke 1.9，圆角端点。
+  统一图标集：24×24 线性图标，stroke 1.6（参考案例的细线风格）。
 #}
 {% macro icon(name) -%}
 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"
+     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
      aria-hidden="true" focusable="false">
 {%- if name == 'dashboard' -%}
   <rect x="3" y="3" width="7" height="9" rx="1.8"/><rect x="14" y="3" width="7" height="5" rx="1.8"/>
@@ -59,19 +59,19 @@
   <nav class="nav-group">
     <div class="nav-label">我的</div>
     <a href="/u" class="{{ 'active' if request.path.rstrip('/') in ['/u', ''] }}">
-      {{ icon('dashboard') }}<span class="nav-text">概览</span>
+      {{ icon('dashboard') }}<span class="nav-text">总览</span>
     </a>
     <a href="/u/apis" class="{{ 'active' if request.path.startswith('/u/apis') }}">
-      {{ icon('api') }}<span class="nav-text">可用接口</span>
+      {{ icon('api') }}<span class="nav-text">接口目录</span>
     </a>
     <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
-      {{ icon('logs') }}<span class="nav-text">调用记录</span>
+      {{ icon('logs') }}<span class="nav-text">调用明细</span>
     </a>
     <a href="/u/redeem" class="{{ 'active' if request.path.startswith('/u/redeem') }}">
-      {{ icon('ticket') }}<span class="nav-text">卡密兑换</span>
+      {{ icon('ticket') }}<span class="nav-text">兑换充值</span>
     </a>
     <a href="/u/profile" class="{{ 'active' if request.path.startswith('/u/profile') }}">
-      {{ icon('profile') }}<span class="nav-text">账号设置</span>
+      {{ icon('profile') }}<span class="nav-text">账号与密钥</span>
     </a>
   </nav>
 
@@ -79,22 +79,22 @@
   <nav class="nav-group">
     <div class="nav-label">管理</div>
     <a href="/admin" class="{{ 'active' if request.path.rstrip('/') in ['/admin', '/admin/'] }}">
-      {{ icon('gauge') }}<span class="nav-text">管理概览</span>
+      {{ icon('gauge') }}<span class="nav-text">运行状况</span>
     </a>
     <a href="/admin/apis" class="{{ 'active' if request.path.startswith('/admin/apis') }}">
-      {{ icon('server') }}<span class="nav-text">接口管理</span>
+      {{ icon('server') }}<span class="nav-text">接口配置</span>
     </a>
     <a href="/admin/users" class="{{ 'active' if request.path.startswith('/admin/users') }}">
-      {{ icon('users') }}<span class="nav-text">用户管理</span>
+      {{ icon('users') }}<span class="nav-text">用户账户</span>
     </a>
     <a href="/admin/cards" class="{{ 'active' if request.path.startswith('/admin/cards') }}">
-      {{ icon('archive') }}<span class="nav-text">卡密批次</span>
+      {{ icon('archive') }}<span class="nav-text">充值卡券</span>
     </a>
     <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') }}">
-      {{ icon('logs') }}<span class="nav-text">全站日志</span>
+      {{ icon('logs') }}<span class="nav-text">全站明细</span>
     </a>
     <a href="/admin/settings" class="{{ 'active' if request.path.startswith('/admin/settings') }}">
-      {{ icon('sliders') }}<span class="nav-text">全局设置</span>
+      {{ icon('sliders') }}<span class="nav-text">平台设置</span>
     </a>
   </nav>
   {% endif %}
@@ -108,8 +108,10 @@
         <div class="foot-name truncate">{{ viewer.nickname or viewer.email if viewer else '' }}</div>
         <div class="foot-meta">
           {% if viewer %}
-          <span class="foot-points">{{ viewer.points }} 积分</span>
-          <span class="foot-role {{ 'is-admin' if viewer.is_admin }}">{{ '管理员' if viewer.is_admin else '用户' }}</span>
+          <span class="foot-points">{{ viewer.points }}</span>
+          <span class="foot-unit">积分</span>
+          <span class="foot-sep">·</span>
+          <span class="foot-role {{ 'is-admin' if viewer.is_admin }}">{{ '管理员' if viewer.is_admin else '成员' }}</span>
           {% endif %}
         </div>
       </div>

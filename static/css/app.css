@@ -1,16 +1,18 @@
 /* ═══════════ 基础 ═══════════ */
+/* 配色取自设计参考：极浅中性底 + 深墨色文字 + 中灰辅助文字。
+   彩色只保留给「动作」（按钮、链接、状态），不用于装饰。 */
 :root {
-  --bg: #f6f4ef;
+  --bg: #fafafa;
   --surface: #ffffff;
-  --surface-2: #fbfaf7;
-  --border: #e8e3d8;
-  --border-strong: #d9d2c3;
-  --ink: #221f19;
-  --ink-2: #5c5548;
-  --ink-3: #8b8375;
+  --surface-2: #fbfbfa;
+  --border: #ebebe9;
+  --border-strong: #dcdcd9;
+  --ink: #04111f;
+  --ink-2: #5b5f63;
+  --ink-3: #717880;
   --brand: #f9681f;
   --brand-2: #e24b06;
-  --brand-soft: #fff1e8;
+  --brand-soft: #fff4ec;
   --ok: #12855b;
   --ok-soft: #e6f6ef;
   --warn: #b26a00;
@@ -43,10 +45,25 @@ body {
 a { color: var(--brand-2); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-h1, h2, h3, h4 { margin: 0 0 .6em; font-weight: 700; line-height: 1.3; letter-spacing: -.01em; }
-h1 { font-size: 22px; }
-h2 { font-size: 18px; }
-h3 { font-size: 15px; }
+/* 排版体系参考设计案例：
+   标题字重 500（不用 700），行高收到 1.15-1.3，靠字号和颜色拉层次；
+   正文用中灰，让标题一眼突出。
+   字重加粗是「喊」，调字号和颜色是「说」。 */
+h1, h2, h3, h4 { margin: 0 0 .6em; font-weight: 500; line-height: 1.3; letter-spacing: -.015em; }
+h1 { font-size: 22px; line-height: 1.2; }
+h2 { font-size: 17px; line-height: 1.3; }
+h3 { font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+h4 { font-size: 13px; font-weight: 600; }
+
+/* 页面引导语：每个页面标题下的一句话，说明这页能做什么 */
+.page-lead {
+  margin: 5px 0 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  max-width: 62ch;
+}
 p { margin: 0 0 .9em; }
 
 code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
@@ -61,13 +78,15 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 /* 设计取向：暖调深色 + 品牌橙作为主色。
    选中项用实色填充（有冲击力），配合微动效保持活泼；
    靠暗部渐变与氛围光营造质感，而不是堆装饰。 */
+/* ═══════════ 侧边栏 ═══════════ */
+/* 设计参考：极浅底色 + 深墨色文字，几乎不用彩色。
+   层次靠「明度差」和「间距」建立，而不是阴影、渐变、光晕。
+   字重只用 500/600，选中靠底色 + 细指示条，不用大面积强调色。 */
 .sidebar {
-  width: 240px;
-  flex: 0 0 240px;
-  background:
-    radial-gradient(120% 80% at 0% 0%, rgba(249, 104, 31, .10) 0%, transparent 55%),
-    linear-gradient(180deg, #221f1a 0%, #1a1815 100%);
-  color: #a9a094;
+  width: 232px;
+  flex: 0 0 232px;
+  background: #fbfbfa;
+  color: #5b5f63;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -76,67 +95,55 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
-  border-right: 1px solid #0f0e0c;
+  border-right: 1px solid #ebebe9;
   scrollbar-width: thin;
-  scrollbar-color: #38322a transparent;
+  scrollbar-color: #dcdcd9 transparent;
 }
-.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar { width: 4px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb {
-  background: #38322a;
-  border-radius: 3px;
+  background: #dcdcd9;
+  border-radius: 2px;
 }
 
 /* ── 品牌区 ── */
 .sidebar .brand {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 20px 18px 18px;
-  position: relative;
-}
-.sidebar .brand::after {
-  content: "";
-  position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(249,104,31,.34), rgba(255,255,255,.05) 55%, transparent);
+  gap: 10px;
+  padding: 22px 20px 20px;
 }
 .sidebar .brand .dot {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  background: linear-gradient(145deg, #ff8f45 0%, var(--brand-2) 100%);
+  border-radius: 7px;
+  background: #101418;
   color: #fff;
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 12.5px;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -.5px;
-  box-shadow: 0 4px 14px rgba(226, 75, 6, .42), inset 0 1px 0 rgba(255,255,255,.28);
+  letter-spacing: 0;
 }
 .sidebar .brand-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 .sidebar .brand-name {
-  color: #fdfbf7;
-  font-size: 14px;
-  font-weight: 750;
+  color: #101418;
+  font-size: 13.5px;
+  font-weight: 600;
   letter-spacing: -.1px;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 .sidebar .brand-sub {
-  color: #d08a4a;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .5px;
+  color: #9aa0a6;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -144,15 +151,15 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 .sidebar .nav-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 12px 0;
+  gap: 1px;
+  padding: 0 12px;
 }
 .sidebar .nav-label {
-  color: #63594b;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.1px;
-  padding: 16px 8px 7px;
+  color: #9aa0a6;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .2px;
+  padding: 18px 8px 8px;
 }
 
 /* ── 菜单项 ── */
@@ -160,121 +167,107 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   position: relative;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 9px 11px;
-  border-radius: 9px;
-  color: #a9a094;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  color: #5b5f63;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.5;
   text-decoration: none;
-  transition: background .16s ease, color .16s ease, transform .16s ease;
+  transition: background .15s ease, color .15s ease;
 }
 .sidebar a:hover {
-  background: rgba(255, 255, 255, .055);
-  color: #f2eee7;
-  transform: translateX(2px);
+  background: #f2f2f0;
+  color: #101418;
 }
-.sidebar a:hover svg.ico { color: #e0a075; }
+.sidebar a:hover svg.ico { color: #5b5f63; }
 
-/* 选中：实色渐变填充 + 光晕，视觉重心明确 */
+/* 选中：浅灰底 + 深墨字 + 左侧 2px 指示条。不加阴影不加渐变。 */
 .sidebar a.active {
-  background: linear-gradient(100deg, var(--brand-2) 0%, #f9681f 100%);
-  color: #fff;
-  font-weight: 650;
-  box-shadow: 0 6px 18px -4px rgba(226, 75, 6, .55), inset 0 1px 0 rgba(255,255,255,.18);
+  background: #ededea;
+  color: #101418;
+  font-weight: 600;
 }
-.sidebar a.active svg.ico { color: #fff; }
-.sidebar a.active:hover { transform: none; }
-/* 右侧小圆点，作为当前页的出挑标记 */
-.sidebar a.active::after {
+.sidebar a.active::before {
   content: "";
   position: absolute;
-  right: 11px;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .9);
-  box-shadow: 0 0 7px rgba(255, 255, 255, .75);
+  width: 2px;
+  height: 15px;
+  border-radius: 0 2px 2px 0;
+  background: #101418;
 }
+.sidebar a.active svg.ico { color: #101418; }
 
 /* ── 图标 ── */
 .sidebar svg.ico {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 17px;
-  color: #7d7466;
-  transition: color .16s ease;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: #9aa0a6;
+  transition: color .15s ease;
 }
 .sidebar .nav-text { min-width: 0; }
 
-.sidebar .spacer { flex: 1; min-height: 18px; }
+.sidebar .spacer { flex: 1; min-height: 20px; }
 
-/* ── 底部账号卡 ── */
-.sidebar .foot { padding: 10px 12px 14px; }
+/* ── 底部账号区 ── */
+.sidebar .foot {
+  padding: 12px;
+  border-top: 1px solid #ebebe9;
+}
 .sidebar .foot-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, .045);
-  border: 1px solid rgba(255, 255, 255, .065);
-  transition: background .16s ease, border-color .16s ease;
+  gap: 9px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background .15s ease;
 }
-.sidebar .foot-card:hover {
-  background: rgba(255, 255, 255, .075);
-  border-color: rgba(249, 104, 31, .32);
-}
+.sidebar .foot-card:hover { background: #f2f2f0; }
 .sidebar .avatar {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(145deg, #ff8f45, var(--brand-2));
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
+  background: #ededea;
+  color: #3d4247;
+  font-size: 12.5px;
+  font-weight: 600;
   line-height: 1;
   user-select: none;
-  box-shadow: 0 3px 10px rgba(226, 75, 6, .34);
 }
 .sidebar .foot-text { min-width: 0; flex: 1; }
 .sidebar .foot-name {
-  color: #f5f1ea;
+  color: #101418;
   font-size: 12.5px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
 }
 .sidebar .foot-meta {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 3px;
+  align-items: baseline;
+  gap: 3px;
+  margin-top: 2px;
+  color: #9aa0a6;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1.2;
 }
 .sidebar .foot-points {
-  color: #efa06a;
-  font-size: 10.5px;
-  font-weight: 700;
+  color: #3d4247;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.sidebar .foot-role {
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, .09);
-  color: #b8afa1;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: .3px;
-}
-.sidebar .foot-role.is-admin {
-  background: rgba(249, 104, 31, .18);
-  color: #ffab6e;
-}
+.sidebar .foot-unit { color: #9aa0a6; }
+.sidebar .foot-sep { color: #d4d4d1; }
+.sidebar .foot-role { color: #9aa0a6; }
+.sidebar .foot-role.is-admin { color: #3d4247; font-weight: 600; }
 
 .sidebar .foot-logout {
   display: grid;
@@ -283,39 +276,31 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   height: 26px;
   padding: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
-  color: #79705f;
+  color: #b0b5ba;
   cursor: pointer;
-  transition: background .16s ease, color .16s ease;
+  transition: background .15s ease, color .15s ease;
 }
 .sidebar .foot-logout:hover {
-  background: rgba(226, 75, 6, .22);
-  color: #ff9d5c;
+  background: #ededea;
+  color: #5b5f63;
 }
 .sidebar .foot-logout svg.ico { width: 15px; height: 15px; }
-
-@media (prefers-reduced-motion: reduce) {
-  /* 系统开启「减少动效」时，只去掉位移这类可能引起不适的动画，
-     颜色与背景的渐变反馈保留——否则界面会显得完全没反应。 */
-  .sidebar a:hover { transform: none; }
-}
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 .topbar {
-  display: flex; align-items: center; gap: 14px;
-  padding: 14px 26px;
-  background: rgba(255,255,255,.86);
-  backdrop-filter: blur(8px);
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 18px 32px;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 20;
 }
-.topbar h1 { margin: 0; font-size: 16.5px; }
-.topbar .sub { color: var(--ink-3); font-size: 12.5px; }
-.topbar .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.topbar h1 { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.25; letter-spacing: -.02em; }
+.topbar .right { margin-left: auto; display: flex; align-items: center; gap: 10px; padding-top: 2px; }
 
-.content { padding: 22px 26px 60px; max-width: 1180px; width: 100%; }
+.content { padding: 26px 32px 72px; max-width: 1200px; width: 100%; }
 
 /* ═══════════ 卡片 / 网格 ═══════════ */
 .card {

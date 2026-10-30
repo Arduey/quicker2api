@@ -2,6 +2,7 @@
 {% block title %}记录 #{{ log.id }} · {{ site_name }}{% endblock %}
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
 {% block heading %}调用详情 #{{ log.id }}{% endblock %}
+{% block subheading %}<p class="page-lead">这一条调用的完整记录：发出去的参数，和对方返回的内容。</p>{% endblock %}
 {% block topbar_right %}<a class="btn sm" href="/u/logs">← 返回记录</a>{% endblock %}
 
 {% block content %}

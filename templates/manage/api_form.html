@@ -2,6 +2,7 @@
 {% block title %}{{ '新建 API' if is_new else '编辑 API' }} · {{ site_name }}{% endblock %}
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
 {% block heading %}{{ '新建 API' if is_new else '编辑 API' }}{% endblock %}
+{% block subheading %}<p class="page-lead">左边是这个接口本身怎么调，右边是用户需要填哪些参数。</p>{% endblock %}
 {% block topbar_right %}
 <a class="btn sm" href="/admin/apis">← 返回列表</a>
 {% endblock %}
