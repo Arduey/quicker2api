@@ -170,16 +170,21 @@ def _register_hooks(app: Flask) -> None:
         def _nav_badges():
             """侧边栏右侧的小徽章。
 
-                apis         可用接口数（在线 + 维护中，下线的不算）
-                calls_today  本人近 24h 调用数（所有用户都看）
-                maintenance  维护中的接口数（仅管理员）
-                users        注册用户总数（仅管理员）
-                total_calls  全站累计调用数（仅管理员）
+                apis        可用接口数（在线 + 维护中，下线的不算）
+                my_calls    本人累计调用数
+                apis_all    全部接口数，含已下线（仅管理员）
+                users       注册用户总数（仅管理员）
+                total_calls 全站累计调用数（仅管理员）
+                feedback    「我有话说」未读话题数
 
             一律返回数字（包括 0）——之前把 0 过滤掉，结果新站点什么都不显示，
             用户会以为功能没做。0 也要显示，只是样式上弱化。
+
+            徽章数字要和它指向的列表页对得上：
+              - 调用明细 /u/logs 统计的是本人全部记录（不分时间）→ my_calls
+              - 接口配置 /admin/apis 统计的是全部接口（含下线）→ apis_all
             """
-            empty = {"apis": None, "calls_today": None, "maintenance": None,
+            empty = {"apis": None, "my_calls": None, "apis_all": None,
                      "users": None, "total_calls": None, "feedback": None}
             if viewer is None:
                 return empty
@@ -190,7 +195,7 @@ def _register_hooks(app: Flask) -> None:
             if db is None:
                 return empty
 
-            badges = {"apis": 0, "calls_today": 0, "maintenance": None,
+            badges = {"apis": 0, "my_calls": 0, "apis_all": None,
                       "users": None, "total_calls": None, "feedback": None}
 
             # 接口目录：用户能看到几个就显示几个。
@@ -201,14 +206,15 @@ def _register_hooks(app: Flask) -> None:
 
             uid = viewer.get("id")
             if uid:
-                badges["calls_today"] = int(db.scalar(
-                    "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND created_at >= %s",
-                    (uid, now_ts() - 86400)) or 0)
+                # 累计调用：与 /u/logs 的 total 同口径，不按时间截断
+                badges["my_calls"] = int(db.scalar(
+                    "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s",
+                    (uid,)) or 0)
 
             if viewer.get("is_admin"):
-                badges["maintenance"] = int(db.scalar(
-                    "SELECT COUNT(*) AS c FROM apis WHERE status = %s",
-                    (_quicker.STATUS_MAINTENANCE,)) or 0)
+                # 全部接口数：含已下线，与 /admin/apis 的「全部」一致
+                badges["apis_all"] = int(db.scalar(
+                    "SELECT COUNT(*) AS c FROM apis") or 0)
                 badges["users"] = int(db.scalar(
                     "SELECT COUNT(*) AS c FROM users") or 0)
                 badges["total_calls"] = int(db.scalar(
