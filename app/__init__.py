@@ -12,7 +12,7 @@ from flask import Flask, flash, g, jsonify, redirect, request, session, url_for
 
 from . import config
 from .db import init_db
-from .util import fmt_ago, fmt_ts, now_ts
+from .util import compact_number, fmt_ago, fmt_ts, now_ts
 
 PERMANENT_SESSION_LIFETIME = timedelta(days=7)
 
@@ -152,22 +152,29 @@ def _register_hooks(app: Flask) -> None:
         viewer = _safe(current_viewer)
 
         def _nav_badges():
-            """侧边栏右侧的小徽章：当日调用数、维护中接口数。
+            """侧边栏右侧的小徽章。
 
-            普通用户只看自己的当日调用；管理员额外看到维护中的接口数量。
+                calls_today  本人近 24h 调用数（所有用户都看）
+                maintenance  维护中的接口数（仅管理员）
+                users        注册用户总数（仅管理员）
+                total_calls  全站累计调用数（仅管理员）
+
             一律返回数字（包括 0）——之前把 0 过滤掉，结果新站点什么都不显示，
             用户会以为功能没做。0 也要显示，只是样式上弱化。
             """
+            empty = {"calls_today": None, "maintenance": None,
+                     "users": None, "total_calls": None}
             if viewer is None:
-                return {"calls_today": None, "maintenance": None}
+                return empty
             from .db import get_db
             from . import quicker as _quicker
 
             db = get_db()
             if db is None:
-                return {"calls_today": None, "maintenance": None}
+                return empty
 
-            badges = {"calls_today": 0, "maintenance": None}
+            badges = {"calls_today": 0, "maintenance": None,
+                      "users": None, "total_calls": None}
             uid = viewer.get("id")
             if uid:
                 badges["calls_today"] = int(db.scalar(
@@ -178,6 +185,10 @@ def _register_hooks(app: Flask) -> None:
                 badges["maintenance"] = int(db.scalar(
                     "SELECT COUNT(*) AS c FROM apis WHERE status = %s",
                     (_quicker.STATUS_MAINTENANCE,)) or 0)
+                badges["users"] = int(db.scalar(
+                    "SELECT COUNT(*) AS c FROM users") or 0)
+                badges["total_calls"] = int(db.scalar(
+                    "SELECT COUNT(*) AS c FROM api_logs") or 0)
             return badges
 
         return {
@@ -205,6 +216,8 @@ def _register_hooks(app: Flask) -> None:
 def _register_filters(app: Flask) -> None:
     app.add_template_filter(fmt_ts, "ts")
     app.add_template_filter(fmt_ago, "ago")
+    # 大数字缩写：9532 → 9.5k+，125861 → 12w+
+    app.add_template_filter(compact_number, "compact")
 
 
 def _register_error_handlers(app: Flask) -> None:

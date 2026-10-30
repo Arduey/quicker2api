@@ -68,7 +68,7 @@
       {{ icon('logs') }}<span class="nav-text">调用明细</span>
       {% if nav_badges and nav_badges.calls_today is not none %}
       <span class="nav-badge {{ 'is-zero' if not nav_badges.calls_today }}"
-            title="近 24 小时调用次数">{{ nav_badges.calls_today }}</span>
+            title="近 24 小时调用 {{ nav_badges.calls_today }} 次">{{ nav_badges.calls_today | compact }}</span>
       {% endif %}
     </a>
     <a href="/u/redeem" class="{{ 'active' if request.path.startswith('/u/redeem') }}">
@@ -94,12 +94,20 @@
     </a>
     <a href="/admin/users" class="{{ 'active' if request.path.startswith('/admin/users') }}">
       {{ icon('users') }}<span class="nav-text">用户账户</span>
+      {% if nav_badges and nav_badges.users is not none %}
+      <span class="nav-badge {{ 'is-zero' if not nav_badges.users }}"
+            title="注册用户总数（{{ nav_badges.users }}）">{{ nav_badges.users | compact }}</span>
+      {% endif %}
     </a>
     <a href="/admin/cards" class="{{ 'active' if request.path.startswith('/admin/cards') }}">
       {{ icon('archive') }}<span class="nav-text">充值卡券</span>
     </a>
     <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') }}">
       {{ icon('logs') }}<span class="nav-text">全站明细</span>
+      {% if nav_badges and nav_badges.total_calls is not none %}
+      <span class="nav-badge {{ 'is-zero' if not nav_badges.total_calls }}"
+            title="全站累计调用 {{ nav_badges.total_calls }} 次">{{ nav_badges.total_calls | compact }}</span>
+      {% endif %}
     </a>
     <a href="/admin/settings" class="{{ 'active' if request.path.startswith('/admin/settings') }}">
       {{ icon('sliders') }}<span class="nav-text">平台设置</span>

@@ -68,6 +68,39 @@ def day_buckets(days: int = 7) -> list[tuple[int, int, str]]:
     return out
 
 
+def compact_number(value) -> str:
+    """把大数字缩写成紧凑形式，用于徽章这类空间有限的地方。
+
+        9532    → 9.5k+
+        12586   → 1.3w+
+        95320   → 9.5w+
+        125861  → 12w+
+        1234567 → 123w+
+        999     → 999
+
+    规则（按中文习惯）：
+      - 1000-9999：以 k 为单位，保留一位小数（9532 → 9.5k+）
+      - ≥10000：以 w 为单位，四舍五入取整（125861 → 12w+）
+      - 小数部分为 0 时省略，避免「10.0k+」这类冗余写法
+    """
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return "0"
+    if number < 0:
+        number = 0
+
+    if number < 1000:
+        return str(number)
+
+    if number < 10000:
+        scaled = "%.1f" % (number / 1000.0)
+        scaled = scaled.rstrip("0").rstrip(".")
+        return "%sk+" % scaled
+
+    return "%dw+" % int(number // 10000)
+
+
 def build_trend(rows, days: int = 7) -> list[dict]:
     """把「按天 group by」的查询结果整理成连续的 N 天序列。
 
