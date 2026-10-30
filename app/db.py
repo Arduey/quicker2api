@@ -327,6 +327,12 @@ def migrate_admin_into_users(target: Database | None = None) -> list[str]:
                    "NOT NULL DEFAULT '' AFTER status")
         notes.append("已给 apis 表加上 maintenance_note 字段")
 
+    # 6. apis.response_example（返回示例，管理员从真实调用里挑一次存下来）
+    if table_exists("apis") and not has_column("apis", "response_example"):
+        db.execute("ALTER TABLE apis ADD COLUMN response_example MEDIUMTEXT "
+                   "AFTER maintenance_note")
+        notes.append("已给 apis 表加上 response_example 字段")
+
     return notes
 
 

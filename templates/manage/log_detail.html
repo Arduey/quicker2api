@@ -2,7 +2,18 @@
 {% block title %}日志 #{{ log.id }} · {{ site_name }}{% endblock %}
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
 {% block heading %}调用详情 #{{ log.id }}{% endblock %}
-{% block topbar_right %}<a class="btn sm" href="/admin/logs">← 返回日志</a>{% endblock %}
+{% block topbar_right %}
+<div class="flex" style="gap:8px">
+  {% if log.is_success %}
+  <form method="post" action="/admin/logs/{{ log.id }}/set-example"
+        data-confirm="把这次返回设为「{{ log.api_name }}」的返回示例？平台用户会看到这段内容。">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn sm primary" type="submit">设为返回示例</button>
+  </form>
+  {% endif %}
+  <a class="btn sm" href="/admin/logs">← 返回日志</a>
+</div>
+{% endblock %}
 
 {% block content %}
 <div class="card">

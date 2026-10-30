@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS apis (
   success_count BIGINT NOT NULL DEFAULT 0,
   status TINYINT NOT NULL DEFAULT 1,
   maintenance_note VARCHAR(200) NOT NULL DEFAULT '',
+  response_example MEDIUMTEXT,
   sort_order INT NOT NULL DEFAULT 0,
   created_at INT NOT NULL DEFAULT 0,
   updated_at INT NOT NULL DEFAULT 0,

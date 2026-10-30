@@ -649,6 +649,62 @@ def log_detail(log_id: int):
                            response_pretty=pretty(row["response_text"]))
 
 
+@bp.post("/logs/<int:log_id>/set-example")
+@guard
+def log_set_example(log_id: int):
+    """把这次调用的返回存成该接口的「返回示例」，展示给平台用户。
+
+    返回示例由管理员从真实调用里挑，比手写更贴近实际，也不容易过期。
+    """
+    if not csrf_valid():
+        flash("会话已过期，请重试", "error")
+        return redirect(url_for("manage.log_detail", log_id=log_id))
+
+    db = get_db()
+    row = db.query_one(
+        "SELECT id, api_id, api_name, response_text, is_success FROM api_logs WHERE id = %s",
+        (log_id,))
+    if row is None:
+        flash("日志不存在", "error")
+        return redirect(url_for("manage.log_list"))
+    if not int(row.get("is_success") or 0):
+        flash("只有成功的调用才能设为返回示例", "error")
+        return redirect(url_for("manage.log_detail", log_id=log_id))
+
+    text_body = (row.get("response_text") or "").strip()
+    if not text_body:
+        flash("这次调用没有返回内容，无法作为示例", "error")
+        return redirect(url_for("manage.log_detail", log_id=log_id))
+
+    api_exists = db.query_one("SELECT id FROM apis WHERE id = %s", (row["api_id"],))
+    if api_exists is None:
+        flash("该接口已被删除，无法设置示例", "error")
+        return redirect(url_for("manage.log_detail", log_id=log_id))
+
+    db.execute("UPDATE apis SET response_example = %s, updated_at = %s WHERE id = %s",
+               (text_body[:60000], now_ts(), row["api_id"]))
+    flash("已把这次返回设为「%s」的返回示例" % row["api_name"], "success")
+    return redirect(url_for("manage.log_detail", log_id=log_id))
+
+
+@bp.post("/apis/<int:api_id>/clear-example")
+@guard
+def api_clear_example(api_id: int):
+    """清空某个接口的返回示例。"""
+    if not csrf_valid():
+        flash("会话已过期，请重试", "error")
+        return redirect(url_for("manage.api_edit", api_id=api_id))
+    db = get_db()
+    row = db.query_one("SELECT name FROM apis WHERE id = %s", (api_id,))
+    if row is None:
+        flash("接口不存在", "error")
+        return redirect(url_for("manage.api_list"))
+    db.execute("UPDATE apis SET response_example = NULL, updated_at = %s WHERE id = %s",
+               (now_ts(), api_id))
+    flash("已清空「%s」的返回示例" % row["name"], "success")
+    return redirect(url_for("manage.api_edit", api_id=api_id))
+
+
 # ═════════════════════ 卡密 ═════════════════════
 @bp.get("/cards")
 @guard

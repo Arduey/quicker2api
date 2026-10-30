@@ -7,7 +7,7 @@ import json
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
                    request, url_for)
 
-from .. import quicker, security
+from .. import config, quicker, security
 from ..db import get_db
 from ..util import (build_trend, client_ip, csrf_valid, delta_percent,
                     fmt_cost_ms, json_err, json_ok, nickname_problem,
@@ -166,15 +166,29 @@ def api_detail(slug: str):
         fields = json.loads(row["fields_json"] or "[]")
     except ValueError:
         fields = []
-    base = (request.url_root or "").rstrip("/")
+    # 调用地址的域名优先级：
+    #   1. 平台设置里的「站点地址」——对外正式域名，用户复制走的就该是它
+    #   2. 当前请求的域名——没配站点地址时的兜底
+    # 之前直接用 request.url_root，在反代/本机访问时会给出 127.0.0.1
+    # 甚至内网 IP，用户复制出去根本调不通。
+    base = config.base_url() or (request.url_root or "").rstrip("/")
     endpoint = base + "/api/v1/" + row["slug"]
+    # 返回示例：管理员从真实调用里挑一次存下来，展示给用户
+    def _pretty(raw):
+        try:
+            return json.dumps(json.loads(raw), ensure_ascii=False, indent=2)
+        except (TypeError, ValueError):
+            return raw or ""
+
+    example_pretty = _pretty(row.get("response_example"))
     return render_template("portal/api_detail.html", viewer=viewer, user=viewer,
                            is_admin=security.viewer_is_admin(viewer),
                            api=row, fields=fields, base=base, endpoint=endpoint,
                            status_label=quicker.status_label(row["status"]),
                            callable_=quicker.is_callable(row),
                            in_maintenance=quicker.is_maintenance(row),
-                           maintenance_note=row.get("maintenance_note") or "")
+                           maintenance_note=row.get("maintenance_note") or "",
+                           example_pretty=example_pretty)
 
 
 @bp.post("/u/api/playground")

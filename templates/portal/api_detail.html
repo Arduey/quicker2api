@@ -56,15 +56,21 @@
         {% if fields %}
         <form id="playForm" data-no-busy>
           {% for f in fields %}
-          <div class="field">
-            <label>
+          {#- 参数名与输入框同一行：键名占固定宽度，输入框占满剩余。
+              hint 只作为 placeholder 提示，不预填成 value（预填会让人
+              以为这就是要提交的内容，且 hint 往往是说明文字而非实际取值）。-#}
+          <div class="field field-inline-play">
+            <label for="pf_{{ f.key }}">
               <span class="inline-code">{{ f.key }}</span>
               {% if f.required %}<span class="req">*</span>{% endif %}
             </label>
             {% if (f.hint or '') | length > 60 %}
-            <textarea name="f_{{ f.key }}" rows="3" placeholder="{{ f.hint }}"></textarea>
+            <textarea id="pf_{{ f.key }}" name="f_{{ f.key }}" rows="2"
+                      placeholder="{{ f.hint or f.key }}"></textarea>
             {% else %}
-            <input type="text" name="f_{{ f.key }}" value="{{ f.default or '' }}" placeholder="{{ f.hint or '' }}">
+            <input id="pf_{{ f.key }}" type="text" name="f_{{ f.key }}"
+                   value="{{ f.default or '' }}"
+                   placeholder="{{ f.hint or f.key }}">
             {% endif %}
           </div>
           {% endfor %}
@@ -155,6 +161,33 @@
         </table>
         {% else %}
         <div class="empty" style="padding:24px">无参数</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {#- 返回示例：由管理员从真实调用里挑选后保存在 apis.response_example -#}
+    <div class="card">
+      <div class="head">
+        <h2>返回示例</h2>
+        {% if api.response_example %}
+        <div class="actions">
+          <button class="btn sm" type="button" data-copy-from="#exampleBox">复制</button>
+        </div>
+        {% endif %}
+      </div>
+      <div class="body">
+        {% if api.response_example %}
+        <pre class="code light" id="exampleBox" style="max-height:340px;overflow:auto;white-space:pre-wrap;word-break:break-all">{{ example_pretty }}</pre>
+        <div class="muted small mt-1">这是一次真实调用的返回内容，实际结果会随参数变化。</div>
+        {% else %}
+        <div class="empty" style="padding:20px">
+          还没有返回示例
+          {% if viewer.is_admin %}
+          <div class="mt-2 small">
+            去 <a href="/admin/logs">全站明细</a> 找一条成功记录，点「设为返回示例」即可。
+          </div>
+          {% endif %}
+        </div>
         {% endif %}
       </div>
     </div>

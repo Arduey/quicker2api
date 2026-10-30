@@ -9,6 +9,7 @@ import secrets
 from datetime import timedelta
 
 from flask import Flask, flash, g, jsonify, redirect, request, session, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import config
 from .db import init_db
@@ -59,6 +60,11 @@ def create_app() -> Flask:
     )
     app.jinja_env.auto_reload = True
     app.json.ensure_ascii = False
+
+    # 信任 Nginx 等反向代理传来的 X-Forwarded-Proto / -Host / -For。
+    # 不加这层时 request.url_root 拿到的是内网地址（127.0.0.1 或 172.x），
+    # 页面上「调用地址」就会显示成用户根本调不通的 IP。
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # 数据库（未安装时为空，页面会跳去安装向导）
     if config.is_installed():

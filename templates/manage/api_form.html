@@ -189,6 +189,34 @@
     {% endif %}
   </div>
 </form>
+
+{% if not is_new %}
+{#- 返回示例：管理员在全站明细里挑一次成功调用设为示例，这里只做查看与清空 -#}
+<div class="card">
+  <div class="head">
+    <h2>返回示例</h2>
+    {% if api.response_example %}
+    <div class="actions">
+      <form method="post" action="/admin/apis/{{ api.id }}/clear-example"
+            data-confirm="清空这个接口的返回示例？用户将看不到示例内容。">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="btn sm danger" type="submit">清空示例</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  <div class="body">
+    {% if api.response_example %}
+    <pre class="code light" style="max-height:300px;overflow:auto;white-space:pre-wrap;word-break:break-all">{{ api.response_example }}</pre>
+    {% else %}
+    <div class="empty" style="padding:20px">
+      还没有返回示例
+      <div class="mt-2 small">去 <a href="/admin/logs">全站明细</a> 找一条成功的调用记录，点「设为返回示例」即可。</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
