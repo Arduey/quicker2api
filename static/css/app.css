@@ -1299,42 +1299,34 @@ mark {
 }
 
 /* ═══════════ 用户中心：可用接口卡片 ═══════════ */
-/* 收藏按钮：叠在卡片右下角，与统计区同一行右侧。
-   bottom 用 28px 而不是 14px——统计区高约 46px、底部距卡片底 15px，
-   所以统计区的垂直中心距卡片底约 41px；按钮高 26px，
-   41 - 26/2 = 28，这样星星的中线和旁边三个数字的中线才对齐，
-   否则会明显偏下、像贴在角落里。 */
+/* 收藏按钮：叠在卡片右下角，只有五角星本身。
+   不放圆形底、不占布局：统计区因此不用留 padding，
+   三个数字的可用宽度和没有收藏按钮时完全一致。 */
 .api-card-wrap .fav-form {
   position: absolute;
-  right: 14px;
-  bottom: 28px;
+  right: 12px;
+  bottom: 25px;
   margin: 0;
   z-index: 2;
+  line-height: 0;
 }
 .fav-btn {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .92);
+  border: 0;
+  background: none;
   color: var(--ink-3);
   cursor: pointer;
   transition: color var(--dur) var(--ease),
-              border-color var(--dur) var(--ease),
-              background var(--dur) var(--ease),
               transform var(--dur) var(--ease);
 }
-.fav-btn:hover {
-  color: var(--ink);
-  border-color: var(--ink-3);
-  transform: scale(1.06);
-}
-.fav-btn.on { color: var(--ink); border-color: var(--ink-3); }
-/* 收藏成功时星星实心，给它一点存在感但不抢戏 */
-.fav-btn.on { background: #fff; }
+.fav-btn svg { width: 20px; height: 20px; }
+.fav-btn:hover { color: var(--ink); transform: scale(1.12); }
+/* 已收藏：星星实心且用主色，比未收藏深一档，扫一眼就能看出状态 */
+.fav-btn.on { color: var(--ink); }
 
 /* 图标按钮的「进行中」态：不改内容只降透明度。
    往圆形按钮里塞「处理中…」会把它撑成胶囊、图标被挤歪，
@@ -1345,8 +1337,8 @@ mark {
   pointer-events: none;
 }
 
-/* 统计区给右下角的收藏按钮让出位置，避免第三个数字被压住 */
-.api-card-stats { padding-right: 34px; }
+/* 收藏按钮改为纯图标叠放后不再占位，统计区不需要预留 padding，
+   三个数字的可用宽度和没有收藏按钮时一致。 */
 
 /* 带收藏按钮的卡片：编辑按钮挪到右上角，不和星星打架 */
 .api-card-wrap .fav-form ~ .api-card-edit { top: 10px; }
