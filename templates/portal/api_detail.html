@@ -60,21 +60,29 @@
         <form id="playForm" data-no-busy>
           <table class="play-table">
             <thead>
-              <tr><th>键</th><th>说明 / 填写</th><th>必填</th></tr>
+              <tr><th>键</th><th>填写</th><th>必填</th></tr>
             </thead>
             <tbody>
               {% for f in fields %}
               <tr>
-                <td class="play-key"><span class="badge mono">{{ f.key }}</span></td>
+                <td class="play-key">
+                  <span class="badge mono">{{ f.key }}</span>
+                  {#- 有说明才显示问号；鼠标悬浮（或键盘聚焦）时显示提示内容。
+                      没有说明的参数不加问号，避免一排无意义的图标。 -#}
+                  {% if f.hint %}
+                  <span class="play-tip" tabindex="0" role="note"
+                        aria-label="{{ f.hint }}">
+                    <span class="play-tip-icon" aria-hidden="true">?</span>
+                    <span class="play-tip-body">{{ f.hint }}</span>
+                  </span>
+                  {% endif %}
+                </td>
                 <td class="play-input">
-                  <div class="play-hint">{{ f.hint or '—' }}</div>
+                  {#- 输入框一律留空且不带 placeholder：避免被误认为已填内容 -#}
                   {% if (f.hint or '') | length > 60 %}
-                  <textarea id="pf_{{ f.key }}" name="f_{{ f.key }}" rows="2"
-                            placeholder="{{ f.hint or f.key }}"></textarea>
+                  <textarea id="pf_{{ f.key }}" name="f_{{ f.key }}" rows="2"></textarea>
                   {% else %}
-                  <input id="pf_{{ f.key }}" type="text" name="f_{{ f.key }}"
-                         value="{{ f.default or '' }}"
-                         placeholder="{{ f.hint or f.key }}">
+                  <input id="pf_{{ f.key }}" type="text" name="f_{{ f.key }}" value="">
                   {% endif %}
                 </td>
                 <td class="play-req">

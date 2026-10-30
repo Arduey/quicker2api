@@ -674,9 +674,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.nowrap, th.nowrap { white-space: nowrap; }
 
 /* ═══════════ 在线调试表格 ═══════════ */
-/* 参数说明与输入框合并：说明列单元格分上下两行，
-   上行是文字说明，下行是输入框。行高比普通表格大一些，
-   让「说明 + 输入框」两层不挤。 */
+/* 参数名 + 问号提示 + 输入框，同一行。说明不再单独占一行。 */
 .play-table { margin-bottom: 4px; }
 .play-table thead th {
   text-transform: none;
@@ -684,23 +682,18 @@ td.nowrap, th.nowrap { white-space: nowrap; }
   font-size: 11.5px;
 }
 .play-table tbody td {
-  padding: 14px;
-  vertical-align: top;
+  padding: 12px 14px;
+  vertical-align: middle;
 }
 .play-table tbody tr:hover { background: transparent; }
 .play-table .play-key {
   width: 1%;
   white-space: nowrap;
-  padding-top: 16px;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
+.play-table .play-key > * { vertical-align: middle; }
 .play-table .play-input { min-width: 0; }
-.play-table .play-hint {
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--ink-2);
-  margin-bottom: 7px;
-  word-break: break-word;
-}
 .play-table .play-input input,
 .play-table .play-input textarea {
   font-size: 13px;
@@ -708,8 +701,74 @@ td.nowrap, th.nowrap { white-space: nowrap; }
 .play-table .play-req {
   width: 1%;
   white-space: nowrap;
-  padding-top: 16px;
   text-align: right;
+}
+
+/* ── 参数说明问号：悬浮 / 聚焦时弹出提示 ── */
+.play-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-3);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  user-select: none;
+  transition: border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+.play-tip:hover,
+.play-tip:focus-visible {
+  border-color: var(--ink-3);
+  color: var(--ink);
+  outline: none;
+}
+
+/* 提示气泡：默认隐藏，悬浮或键盘聚焦时出现 */
+.play-tip-body {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(2px);
+  z-index: 60;
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 11px;
+  border-radius: var(--radius-xs);
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.55;
+  white-space: normal;
+  word-break: break-word;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease),
+              transform var(--dur) var(--ease);
+}
+.play-tip:hover .play-tip-body,
+.play-tip:focus-visible .play-tip-body {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+/* 小三角，指向问号 */
+.play-tip-body::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1a1a1a;
 }
 
 /* ═══════════ 徽标 ═══════════ */
