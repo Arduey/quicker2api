@@ -952,6 +952,12 @@ td.nowrap, th.nowrap { white-space: nowrap; }
 .ml-auto { margin-left: auto; }
 .grow { flex: 1; min-width: 0; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* hidden 属性必须真的让元素消失。
+   浏览器对 [hidden] 的默认样式是 display:none，但那只是 UA 样式，
+   任何作者样式里的 display 都会盖掉它——.api-card-wrap 是 flex、
+   .btn 是 inline-flex，于是 el.hidden=true 只改了属性、元素照样显示
+   （表现为「筛选没生效，只有高亮变了」）。这里统一兜底。 */
+[hidden] { display: none !important; }
 /* 视觉隐藏但仍可被辅助技术/表单逻辑使用。
    用 clip 而不是 display:none——后者会让元素不参与表单的隐式提交。 */
 .visually-hidden {
