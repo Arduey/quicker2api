@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ topic.title }} · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
+{% block heading %}{{ topic.title }}{% endblock %}
+{% block subheading %}
+<p class="page-lead">{{ topic.user_nickname or '匿名' }} 发起于 {{ topic.created_at | ago }}{% if topic.reply_count %} · {{ topic.reply_count }} 条回复{% endif %}</p>
+{% endblock %}
+
+{% block topbar_right %}
+<a class="btn sm" href="/u/feedback">← 返回列表</a>
+{% endblock %}
+
+{% block content %}
+
+{#- 话题正文：纯文字，不解析 Markdown 也不允许 HTML（模板转义） -#}
+<div class="card">
+  <div class="body">
+    <div class="topic-head">
+      <span class="avatar sm">{{ (topic.user_nickname or 'U')[0] | upper }}</span>
+      <div class="topic-head-text">
+        <div class="topic-head-name">
+          {{ topic.user_nickname or '匿名' }}
+          {% if is_mine %}<span class="badge">我发的</span>{% endif %}
+        </div>
+        <div class="muted small">{{ topic.created_at | ts }}</div>
+      </div>
+    </div>
+    <div class="topic-body">{{ topic.body }}</div>
+  </div>
+</div>
+
+{#- 评论区：所有回复按时间正序，像评论一样一条条往下排 -#}
+<div class="card">
+  <div class="head">
+    <h2>回复</h2>
+    <div class="actions">
+      <span class="muted small">{{ replies | length }} 条</span>
+    </div>
+  </div>
+  <div class="body {{ 'flush' if replies }}">
+    {% if replies %}
+    <div class="reply-list">
+      {% for r in replies %}
+      <div class="reply-item">
+        <span class="avatar sm">{{ (r.user_nickname or 'U')[0] | upper }}</span>
+        <div class="reply-main">
+          <div class="reply-head">
+            <span class="reply-name">{{ r.user_nickname or '匿名' }}</span>
+            {% if r.is_mine %}<span class="badge">我</span>{% endif %}
+            {% if r.user_id == topic.user_id %}<span class="badge info">楼主</span>{% endif %}
+            <span class="muted small">{{ r.created_at | ago }}</span>
+          </div>
+          <div class="reply-body">{{ r.body }}</div>
+        </div>
+      </div>
+      {% endfor %}
+      <div id="r-bottom"></div>
+    </div>
+    {% else %}
+    <div class="empty">
+      <div class="big">✎</div>
+      还没有人回复，来说点什么吧
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{#- 回复框 -#}
+<div class="card">
+  <div class="head"><h2>写回复</h2></div>
+  <div class="body">
+    <form method="post" action="/u/feedback/{{ topic.id }}/reply">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="field">
+        <textarea name="body" rows="4" required maxlength="{{ body_max }}"
+                  placeholder="说说你的看法…"></textarea>
+        <div class="help">纯文字，最多 {{ body_max }} 字</div>
+      </div>
+      <div class="btn-row end">
+        <button class="btn primary" type="submit" data-busy-label="发送中…">发表回复</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

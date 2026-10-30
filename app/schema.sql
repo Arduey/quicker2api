@@ -130,3 +130,51 @@ CREATE TABLE IF NOT EXISTS rate_counters (
   PRIMARY KEY (bucket, target, second_ts),
   KEY idx_rate_ts (second_ts)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ═══════════ 「我有话说」：需求 / 反馈 ═══════════
+-- 话题：用户提的需求或问题。纯文字，标题 + 正文。
+-- reply_count / last_reply_at 冗余存一份，列表页不必每条都去 COUNT。
+CREATE TABLE IF NOT EXISTS topics (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  user_nickname VARCHAR(64) NOT NULL DEFAULT '',
+  title VARCHAR(120) NOT NULL,
+  body TEXT,
+  reply_count INT NOT NULL DEFAULT 0,
+  last_reply_at INT NOT NULL DEFAULT 0,
+  created_at INT NOT NULL DEFAULT 0,
+  updated_at INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  KEY idx_topic_updated (updated_at),
+  KEY idx_topic_user (user_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 话题下的回复。就像评论区，谁都能回，包括话题作者本人。
+CREATE TABLE IF NOT EXISTS topic_replies (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  topic_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  user_nickname VARCHAR(64) NOT NULL DEFAULT '',
+  body TEXT,
+  created_at INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  KEY idx_reply_topic (topic_id, id),
+  KEY idx_reply_user (user_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 阅读状态：某人最后一次打开某个话题的时刻。
+-- 未读判定 = topics.updated_at > read_at，且此人「关心」这个话题
+-- （自己是作者、自己回复过，或他是管理员）。
+-- 自己发帖/回帖时同时刷新这里，所以自己的操作不会给自己产生未读。
+--
+-- read_reply_count 是必要的补充：时间戳只到秒，如果回复和阅读发生在
+-- 同一秒内，updated_at > read_at 不成立，未读提醒就会漏掉。
+-- 用「已读到第几条回复」做兜底，与时间戳任一满足即算未读。
+CREATE TABLE IF NOT EXISTS topic_reads (
+  user_id INT UNSIGNED NOT NULL,
+  topic_id INT UNSIGNED NOT NULL,
+  read_at INT NOT NULL DEFAULT 0,
+  read_reply_count INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, topic_id),
+  KEY idx_read_topic (topic_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

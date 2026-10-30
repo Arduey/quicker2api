@@ -41,6 +41,9 @@
 {%- elif name == 'logout' -%}
   <path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/>
   <path d="M15 16l4-4-4-4"/><path d="M19 12H9"/>
+{%- elif name == 'chat' -%}
+  <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.3 9.3 0 0 1-2.6-.4L4 21l1.4-4.2A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/>
+  <path d="M8.5 11.5h.01"/><path d="M12 11.5h.01"/><path d="M15.5 11.5h.01"/>
 {%- endif -%}
 </svg>
 {%- endmacro %}
@@ -79,6 +82,12 @@
     </a>
     <a href="/u/profile" class="{{ 'active' if request.path.startswith('/u/profile') }}">
       {{ icon('profile') }}<span class="nav-text">账号与密钥</span>
+    </a>
+    <a href="/u/feedback" class="{{ 'active' if request.path.startswith('/u/feedback') }}">
+      {{ icon('chat') }}<span class="nav-text">我有话说</span>
+      {% if nav_badges and nav_badges.feedback %}
+      <span class="nav-badge" title="{{ nav_badges.feedback }} 个话题有新回复">{{ nav_badges.feedback | compact }}</span>
+      {% endif %}
     </a>
   </nav>
 

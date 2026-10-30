@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}发起话题 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
+{% block heading %}发起话题{% endblock %}
+{% block subheading %}
+<p class="page-lead">说说你想要什么功能，或者哪里用着不顺。别人看到后可以回复讨论。</p>
+{% endblock %}
+
+{% block topbar_right %}
+<a class="btn sm" href="/u/feedback">← 返回列表</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="body">
+    {% if error %}
+    <div class="alert error"><span>{{ error }}</span></div>
+    {% endif %}
+
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+      <div class="field">
+        <label>标题 <span class="req">*</span></label>
+        <input type="text" name="title" value="{{ title }}" required
+               maxlength="{{ title_max }}" placeholder="一句话说清你想提什么">
+        <div class="help">最多 {{ title_max }} 字</div>
+      </div>
+
+      <div class="field">
+        <label>正文 <span class="req">*</span></label>
+        <textarea name="body" rows="8" required maxlength="{{ body_max }}"
+                  placeholder="具体说说场景：你遇到什么问题，希望能怎么解决">{{ body }}</textarea>
+        <div class="help">纯文字，最多 {{ body_max }} 字</div>
+      </div>
+
+      <div class="btn-row end">
+        <button class="btn primary" type="submit" data-busy-label="发布中…">发布话题</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

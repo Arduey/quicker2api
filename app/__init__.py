@@ -103,6 +103,7 @@ def create_app() -> Flask:
 def _register_blueprints(app: Flask) -> None:
     from .routes.api_v1 import bp as api_v1_bp
     from .routes.auth import bp as auth_bp
+    from .routes.feedback import bp as feedback_bp
     from .routes.home import bp as home_bp
     from .routes.install import bp as install_bp
     from .routes.manage import bp as manage_bp
@@ -112,6 +113,7 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(home_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(portal_bp)
+    app.register_blueprint(feedback_bp)
     app.register_blueprint(manage_bp)
     app.register_blueprint(api_v1_bp)
 
@@ -178,7 +180,7 @@ def _register_hooks(app: Flask) -> None:
             用户会以为功能没做。0 也要显示，只是样式上弱化。
             """
             empty = {"apis": None, "calls_today": None, "maintenance": None,
-                     "users": None, "total_calls": None}
+                     "users": None, "total_calls": None, "feedback": None}
             if viewer is None:
                 return empty
             from .db import get_db
@@ -189,7 +191,7 @@ def _register_hooks(app: Flask) -> None:
                 return empty
 
             badges = {"apis": 0, "calls_today": 0, "maintenance": None,
-                      "users": None, "total_calls": None}
+                      "users": None, "total_calls": None, "feedback": None}
 
             # 接口目录：用户能看到几个就显示几个。
             # 下线的接口对用户完全隐藏，所以不计入，否则数字对不上列表。
@@ -211,6 +213,16 @@ def _register_hooks(app: Flask) -> None:
                     "SELECT COUNT(*) AS c FROM users") or 0)
                 badges["total_calls"] = int(db.scalar(
                     "SELECT COUNT(*) AS c FROM api_logs") or 0)
+
+            # 「我有话说」未读：口径与 feedback.unread_count 完全一致，
+            # 那边改动时这里要同步改（管理员看全部，普通用户只看关心的）。
+            if uid:
+                try:
+                    from .routes.feedback import unread_count
+
+                    badges["feedback"] = unread_count(db, viewer)
+                except Exception:  # noqa: BLE001 表还没建好时不该拖垮整页
+                    badges["feedback"] = 0
             return badges
 
         return {

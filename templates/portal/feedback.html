@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}我有话说 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
+{% block heading %}我有话说{% endblock %}
+{% block subheading %}
+<p class="page-lead">想要的功能、用起来别扭的地方，都可以在这里提。别人开的话题也能看、能回。</p>
+{% endblock %}
+
+{% block topbar_right %}
+<a class="btn sm primary" href="/u/feedback/new">发起话题</a>
+{% endblock %}
+
+{% block content %}
+{% if topics %}
+<div class="card">
+  <div class="head">
+    <h2>全部话题</h2>
+    <div class="actions">
+      <span class="muted small">{{ topics | length }} 个话题{% if unread %} · <b>{{ unread }} 个未读</b>{% endif %}</span>
+    </div>
+  </div>
+  <div class="body flush">
+    <div class="topic-list">
+      {% for t in topics %}
+      <a class="topic-item{{ ' is-unread' if t.unread }}" href="/u/feedback/{{ t.id }}">
+        <div class="topic-main">
+          <div class="topic-title">
+            {% if t.unread %}<span class="unread-dot" aria-label="未读"></span>{% endif %}
+            <span class="topic-title-text">{{ t.title }}</span>
+          </div>
+          <div class="topic-meta">
+            <span class="topic-author">{{ t.user_nickname or '匿名' }}</span>
+            {% if t.is_mine %}<span class="badge">我发的</span>{% endif %}
+            <span class="muted">·</span>
+            <span class="muted">{{ t.updated_at | ago }}</span>
+            {% if t.reply_count %}
+            <span class="muted">·</span>
+            <span class="muted">{{ t.reply_count }} 条回复</span>
+            {% endif %}
+          </div>
+        </div>
+        <span class="topic-arrow" aria-hidden="true">›</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="body">
+    <div class="empty">
+      <div class="big">✦</div>
+      还没有人开口
+      <div class="mt-2">
+        <a class="btn primary" href="/u/feedback/new">做第一个提需求的人</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -2017,3 +2017,134 @@ a.stat-card:hover {
     transition-duration: .01ms !important;
   }
 }
+
+/* ═══════════ 「我有话说」 ═══════════ */
+/* 通用小头像：侧栏那份是 .sidebar .avatar 专属，
+   反馈页在正文里也要用，这里补一个可复用的。 */
+.avatar.sm {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}
+
+/* ── 话题列表 ── */
+.topic-list { display: flex; flex-direction: column; }
+.topic-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
+}
+.topic-item:last-child { border-bottom: 0; }
+.topic-item:hover { background: var(--surface-2); }
+.topic-main { flex: 1; min-width: 0; }
+.topic-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.topic-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 有未读的话题标题略重一点，配合左侧小圆点 */
+.topic-item.is-unread .topic-title-text { font-weight: 700; }
+.unread-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.topic-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+  flex-wrap: wrap;
+}
+.topic-author { color: var(--ink-2); font-weight: 500; }
+.topic-arrow {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1;
+}
+.topic-item:hover .topic-arrow { color: var(--ink); }
+
+/* ── 话题正文 ── */
+.topic-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.topic-head-text { min-width: 0; }
+.topic-head-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* 纯文字：保留换行，不做 Markdown 渲染 */
+.topic-body {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── 评论区 ── */
+.reply-list { display: flex; flex-direction: column; }
+.reply-item {
+  display: flex;
+  gap: 11px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.reply-item:last-child { border-bottom: 0; }
+.reply-main { flex: 1; min-width: 0; }
+.reply-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+.reply-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.reply-body {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
