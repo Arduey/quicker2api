@@ -109,10 +109,14 @@
     </g>
     {%- endfor %}
 
-    {#- 横轴日期 -#}
+    {#- 横轴日期：点数多时抽稀，否则 90 天区间的标签会重叠成一团。
+       估算：按每 7 天一个标签，最少 1，标签之间保持均匀间隔。 -#}
+    {%- set label_step = 1 if n <= 10 else ((n / 7) | round(0, 'ceil') | int) -%}
     {%- for pt in ns.pts %}
+    {%- if loop.index0 % label_step == 0 or loop.last %}
     <text x="{{ pt.x }}" y="{{ height - 8 }}" text-anchor="middle"
           class="chart-axis chart-axis-x">{{ pt.p.label }}</text>
+    {%- endif %}
     {%- endfor %}
   </svg>
 </div>

@@ -101,6 +101,33 @@ def compact_number(value) -> str:
     return "%dw+" % int(number // 10000)
 
 
+def delta_percent(current, previous) -> dict | None:
+    """算环比涨跌，用于 KPI 卡片上的 ▲/▼ 徽章。
+
+    返回 None 表示无法计算（基期为 0，涨跌幅没有意义）。
+    否则返回 {"pct": 12.5, "dir": "up"/"down"/"flat", "text": "12.5%"}。
+    """
+    try:
+        cur = int(current or 0)
+        prev = int(previous or 0)
+    except (TypeError, ValueError):
+        return None
+
+    # 基期为 0 时不能算百分比（除以 0），也不能说「涨了 100%」
+    if prev == 0:
+        return None
+
+    diff = (cur - prev) * 100.0 / prev
+    pct = round(abs(diff), 1)
+    if pct < 0.1:
+        return {"pct": 0.0, "dir": "flat", "text": "持平"}
+    return {
+        "pct": pct,
+        "dir": "up" if diff > 0 else "down",
+        "text": "%.1f%%" % pct,
+    }
+
+
 def build_trend(rows, days: int = 7) -> list[dict]:
     """把「按天 group by」的查询结果整理成连续的 N 天序列。
 

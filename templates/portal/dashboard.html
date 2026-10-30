@@ -18,7 +18,20 @@
   <div class="stat">
     <div class="label">今日调用</div>
     <div class="value">{{ stats.calls_today }}</div>
-    <div class="hint">累计 {{ stats.calls }} 次</div>
+    <div class="stat-foot">
+      {% if stats.calls_delta %}
+        {% if stats.calls_delta.dir == 'up' %}
+        <span class="delta up">▲ {{ stats.calls_delta.text }}</span>
+        {% elif stats.calls_delta.dir == 'down' %}
+        <span class="delta down">▼ {{ stats.calls_delta.text }}</span>
+        {% else %}
+        <span class="delta flat">持平</span>
+        {% endif %}
+        <span class="hint">较昨日同时段</span>
+      {% else %}
+        <span class="hint">累计 {{ stats.calls }} 次</span>
+      {% endif %}
+    </div>
   </div>
   <div class="stat">
     <div class="label">成功率</div>
@@ -34,8 +47,15 @@
 
 <div class="card">
   <div class="head">
-    <h2>近 7 天调用趋势</h2>
-    <div class="actions"><a class="btn sm" href="/u/logs">查看明细</a></div>
+    <h2>{{ days }} 天调用趋势</h2>
+    <div class="actions">
+      <div class="range-tabs">
+        <a class="{{ 'on' if days == 7 }}" href="/u?days=7">近 7 天</a>
+        <a class="{{ 'on' if days == 30 }}" href="/u?days=30">近 30 天</a>
+        <a class="{{ 'on' if days == 90 }}" href="/u?days=90">近 90 天</a>
+      </div>
+      <a class="btn sm" href="/u/logs">查看明细</a>
+    </div>
   </div>
   <div class="body">
     {{ line_chart(trend, height=190) }}

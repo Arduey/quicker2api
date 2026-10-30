@@ -364,6 +364,9 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 .stat .label { color: var(--ink-3); font-size: 12px; font-weight: 500; letter-spacing: .2px; }
 .stat .value { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin-top: 6px; line-height: 1.1; }
 .stat .hint { color: var(--ink-3); font-size: 11.5px; margin-top: 4px; }
+/* 涨跌徽章与说明文字排成一行，避免换行把卡片撑高 */
+.stat .stat-foot { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.stat .stat-foot .hint { margin-top: 0; }
 .stat.brand { background: var(--brand); border-color: var(--brand); color: #fff; }
 .stat.brand .label, .stat.brand .hint { color: rgba(255,255,255,.82); }
 .stat.brand .label, .stat.brand .hint { color: rgba(255,255,255,.82); }
@@ -883,6 +886,48 @@ a.stat-card:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .modal-box { animation: none; }
+}
+
+/* ═══════════ 涨跌徽章 ═══════════ */
+.delta {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 650;
+  padding: 3px 8px;
+  border-radius: 999px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+/* 上涨用绿色浅底——对业务来说是好事 */
+.delta.up { background: var(--brand-soft); color: #3e8b2f; }
+/* 下降用橙色浅底，提醒但不刺眼 */
+.delta.down { background: #fff1e6; color: #c2661f; }
+.delta.flat { background: #eef1ec; color: var(--ink-3); }
+
+/* ═══════════ 区间切换 ═══════════ */
+.range-tabs {
+  display: inline-flex;
+  gap: 2px;
+  background: #eef3ea;
+  padding: 3px;
+  border-radius: 999px;
+}
+.range-tabs a {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: background .15s ease, color .15s ease;
+  white-space: nowrap;
+}
+.range-tabs a:hover { color: var(--ink-2); }
+.range-tabs a.on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(26, 31, 22, .06);
 }
 
 /* ═══════════ 折线图 ═══════════ */

@@ -9,9 +9,9 @@ from flask import (Blueprint, flash, jsonify, redirect, render_template,
 
 from .. import quicker, security
 from ..db import get_db
-from ..util import (build_trend, client_ip, csrf_valid, json_err, json_ok,
-                    nickname_problem, nickname_taken, normalize_nickname,
-                    now_ts, text, to_int)
+from ..util import (build_trend, client_ip, csrf_valid, delta_percent,
+                    json_err, json_ok, nickname_problem, nickname_taken,
+                    normalize_nickname, now_ts, text, to_int)
 
 bp = Blueprint("portal", __name__)
 
@@ -44,11 +44,20 @@ def guard(view):
 def dashboard():
     viewer = security.current_viewer()
     db = get_db()
+    # 趋势图区间：只允许 7 / 30 / 90，避免任意值被拼进 SQL
+    try:
+        days = int(request.args.get("days", 7))
+    except (TypeError, ValueError):
+        days = 7
+    if days not in (7, 30, 90):
+        days = 7
+
+    now = now_ts()
     stats = {
         "calls": db.scalar("SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s", (viewer["id"],)),
         "calls_today": db.scalar(
             "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND created_at >= %s",
-            (viewer["id"], now_ts() - 86400),
+            (viewer["id"], now - 86400),
         ),
         "spent": db.scalar(
             "SELECT COALESCE(SUM(cost_points),0) AS c FROM api_logs "
@@ -70,18 +79,27 @@ def dashboard():
         (viewer["id"],),
     )
 
+    # 「今日调用」环比：和昨天同一时段比较。
+    # 直接比昨天全天会永远显示下降（今天还没过完），所以只比到当前时刻。
+    yesterday_same_time = db.scalar(
+        "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s "
+        "AND created_at >= %s AND created_at < %s",
+        (viewer["id"], now - 2 * 86400, now - 86400),
+    )
+    stats["calls_delta"] = delta_percent(stats["calls_today"], int(yesterday_same_time or 0))
+
     # 近 7 日调用趋势（按天聚合，缺的日期补 0，保证横轴连续）
     trend_rows = db.query(
         "SELECT DATE(FROM_UNIXTIME(created_at)) AS d, COUNT(*) AS total, "
         "SUM(is_success = 1) AS ok FROM api_logs "
         "WHERE user_id = %s AND created_at >= %s GROUP BY d ORDER BY d",
-        (viewer["id"], now_ts() - 7 * 86400),
+        (viewer["id"], now - days * 86400),
     )
-    trend = build_trend(trend_rows, 7)
+    trend = build_trend(trend_rows, days)
 
     apis = _visible_apis(db)
     return render_template("portal/dashboard.html", viewer=viewer, user=viewer, is_admin=False,
-                           stats=stats, recent=recent, apis=apis, trend=trend)
+                           stats=stats, recent=recent, apis=apis, trend=trend, days=days)
 
 
 def _visible_apis(db) -> list[dict]:
