@@ -162,6 +162,177 @@
     btn.textContent = show ? "隐藏" : "显示";
   });
 
+  /* ═══════════ 自定义下拉菜单 ═══════════ */
+  /* 原生 <select> 的弹层由系统绘制，样式无法统一；这里把它隐藏，
+     用一个样式受控的按钮 + 弹层替代，但**保留原生 select 作为数据源**，
+     所以表单提交、onchange 监听、JS 直接赋值都照常工作。 */
+  const SEL = {
+    open: null,     // 当前展开的 select
+    panel: null,    // 复用的面板元素
+  };
+
+  const ARROW = '<svg class="sel-arrow" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true">'
+    + '<path d="M0 0h10L5 6z" fill="currentColor"/></svg>';
+
+  function selLabel(select) {
+    const opt = select.options[select.selectedIndex];
+    const text = opt ? (opt.textContent || "").trim() : "";
+    return text || "请选择";
+  }
+
+  function closePanel() {
+    if (SEL.panel) {
+      SEL.panel.remove();
+      SEL.panel = null;
+    }
+    if (SEL.open) {
+      const wrap = SEL.open.closest(".sel-wrap");
+      if (wrap) wrap.classList.remove("open");
+      SEL.open = null;
+    }
+  }
+
+  function buildPanel(select, trigger) {
+    closePanel();
+    const panel = document.createElement("div");
+    panel.className = "sel-panel";
+    panel.setAttribute("role", "listbox");
+
+    Array.from(select.options).forEach(function (opt) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "sel-option" + (opt.selected ? " on" : "");
+      item.textContent = (opt.textContent || "").trim();
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", opt.selected ? "true" : "false");
+      if (opt.disabled) {
+        item.disabled = true;
+        item.classList.add("disabled");
+      }
+      item.addEventListener("click", function () {
+        if (opt.disabled) return;
+        select.value = opt.value;
+        closePanel();
+        // 走原生事件，让 onchange="this.form.submit()" 之类的逻辑照常触发
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      panel.appendChild(item);
+    });
+
+    // 用 fixed 定位挂到 body：卡片是 overflow:hidden，挂在里面会被裁掉
+    document.body.appendChild(panel);
+    const r = trigger.getBoundingClientRect();
+    panel.style.minWidth = Math.max(r.width, 140) + "px";
+
+    const panelH = panel.offsetHeight;
+    const below = window.innerHeight - r.bottom;
+    // 下方放不下就向上弹
+    if (below < panelH + 12 && r.top > panelH + 12) {
+      panel.style.top = (r.top - panelH - 6) + "px";
+    } else {
+      panel.style.top = (r.bottom + 6) + "px";
+    }
+    panel.style.left = r.left + "px";
+
+    const wrap = select.closest(".sel-wrap");
+    if (wrap) wrap.classList.add("open");
+    SEL.open = select;
+    SEL.panel = panel;
+  }
+
+  function enhanceSelect(select) {
+    if (select.dataset.selDone === "1") return;
+    if (select.hasAttribute("data-native-select")) return;  // 需要原生外观的（如多选）可跳过
+    select.dataset.selDone = "1";
+
+    // ── 隐藏前先量好尺寸 ──
+    // 各处的 select 宽度来源不同：普通表单靠基础规则 width:100%，
+    // 筛选栏靠 `.filter-bar .filter-item select{width:130px}`，
+    // toDevice 靠内联 flex:0 0 190px。这些规则都是针对 select 元素的，
+    // 元素被包进 wrapper 后就不再生效，所以必须在包裹前把尺寸搬到 wrapper 上。
+    const rect = select.getBoundingClientRect();
+    const measured = Math.round(rect.width);
+    const parent = select.parentNode;
+    const cs = window.getComputedStyle(parent);
+    const parentInner = parent.clientWidth
+      - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    // 宽度基本等于父容器内容宽 → 它是「撑满型」，wrapper 用 100% 即可
+    const isFullWidth = parentInner > 0 && measured >= parentInner - 2;
+
+    const inline = select.getAttribute("style") || "";
+    const movedInline = inline.split(";").filter(function (decl) {
+      const prop = (decl.split(":")[0] || "").trim().toLowerCase();
+      return prop && /^(flex|width|min-width|max-width)$/.test(prop);
+    }).join(";");
+
+    const wrap = document.createElement("span");
+    wrap.className = "sel-wrap";
+    // 注意：不要把 select 原来的 class 拷到 wrap 上。
+    // 那些样式（如 .api-filter-cat 的 padding: 8px 32px 8px 14px）是为
+    // 原生 select 设计的，套到外层会让 wrap 比 trigger 高出一截。
+    // 需要的紧凑样式改在 CSS 里直接作用于 .sel-trigger。
+    if (select.className) {
+      wrap.dataset.origClass = select.className.trim();
+    }
+    if (movedInline) {
+      wrap.style.cssText = movedInline;
+    } else if (!isFullWidth && measured > 1) {
+      wrap.style.width = measured + "px";
+    }
+    if (select.classList.contains("api-filter-cat")) {
+      wrap.classList.add("sel-compact");
+    }
+
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.classList.add("sel-native");
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "sel-trigger";
+    trigger.innerHTML = '<span class="sel-text"></span>' + ARROW;
+    wrap.appendChild(trigger);
+
+    const label = trigger.querySelector(".sel-text");
+    const sync = function () { label.textContent = selLabel(select); };
+    sync();
+
+    // 选项被 JS 动态改过（如「获取已连接设备」）也要跟着更新
+    try {
+      new MutationObserver(sync).observe(select, { childList: true, subtree: true });
+    } catch (e) { /* 老浏览器忽略 */ }
+    select.addEventListener("change", sync);
+
+    trigger.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (SEL.open === select) { closePanel(); return; }
+      buildPanel(select, trigger);
+    });
+  }
+
+  function scanSelects(root) {
+    (root || document).querySelectorAll("select").forEach(enhanceSelect);
+  }
+
+  document.addEventListener("click", function (ev) {
+    if (SEL.panel && !ev.target.closest(".sel-panel") && !ev.target.closest(".sel-trigger")) {
+      closePanel();
+    }
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape") closePanel();
+  });
+  window.addEventListener("resize", closePanel);
+  // 页面滚动时面板位置会错，直接收起（比跟随定位简单可靠）
+  window.addEventListener("scroll", closePanel, true);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => scanSelects(document));
+  } else {
+    scanSelects(document);
+  }
+
   /* ── 表单提交后按钮自动禁用（防止重复提交） ── */
   document.addEventListener("submit", (ev) => {
     const form = ev.target;

@@ -333,6 +333,12 @@ def migrate_admin_into_users(target: Database | None = None) -> list[str]:
                    "AFTER maintenance_note")
         notes.append("已给 apis 表加上 response_example 字段")
 
+    # 7. apis.category（接口分类，方便主页按分类筛选）
+    if table_exists("apis") and not has_column("apis", "category"):
+        db.execute("ALTER TABLE apis ADD COLUMN category VARCHAR(32) "
+                   "NOT NULL DEFAULT '' AFTER response_example")
+        notes.append("已给 apis 表加上 category 字段")
+
     return notes
 
 

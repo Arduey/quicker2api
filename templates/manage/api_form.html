@@ -67,9 +67,14 @@
               <div class="help">0 = 免费；推送失败会自动退回</div>
             </div>
             <div class="field">
-              <label>排序</label>
-              <input type="number" name="sort_order" step="1" value="{{ a.sort_order }}">
-              <div class="help">数字小的排前面</div>
+              <label>分类</label>
+              <select name="category">
+                <option value="">未分类</option>
+                {% for name in categories %}
+                <option value="{{ name }}" {{ 'selected' if (a.category or '') == name }}>{{ name }}</option>
+                {% endfor %}
+              </select>
+              <div class="help">在「平台设置 → 接口分类」里维护可选分类</div>
             </div>
           </div>
           <div class="field">

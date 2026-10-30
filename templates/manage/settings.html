@@ -175,6 +175,64 @@
     </form>
   </div>
 </div>
+
+<!-- ════════ 接口分类 ════════ -->
+<div class="card">
+  <div class="head"><h2>接口分类</h2></div>
+  <div class="body">
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="categories">
+
+      <div class="field">
+        <label>分类列表（每行一个）</label>
+        <textarea name="categories" rows="6" maxlength="2000"
+                  placeholder="消息推送&#10;数据处理">{{ groups.categories | join('\n') }}</textarea>
+        <div class="help">
+          建/改接口时从这里选。删掉某个分类不会影响已归到该分类的接口，它们会显示为原分类名。
+        </div>
+      </div>
+
+      <div class="btn-row mt-2 end">
+        <button class="btn primary" type="submit">保存分类</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════ 调用限流 ════════ -->
+<div class="card">
+  <div class="head"><h2>调用限流</h2></div>
+  <div class="body">
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="ratelimit">
+
+      <div class="row">
+        <div class="field">
+          <label>每个账号每秒最多调用</label>
+          <input type="number" name="qps_per_user" min="0" max="10000" step="1"
+                 value="{{ groups.ratelimit.per_user }}">
+          <div class="help">0 = 不限制。防止单个账号刷接口</div>
+        </div>
+        <div class="field">
+          <label>每个接口每秒最多被调用</label>
+          <input type="number" name="qps_per_api" min="0" max="10000" step="1"
+                 value="{{ groups.ratelimit.per_api }}">
+          <div class="help">0 = 不限制。保护上游 Quicker 不被打爆</div>
+        </div>
+      </div>
+
+      <div class="alert info small">
+        <span>两个维度同时生效，任一超标即返回 429 并提示稍后重试。计数按秒统计，多进程部署下同样有效。</span>
+      </div>
+
+      <div class="btn-row mt-2 end">
+        <button class="btn primary" type="submit">保存限流设置</button>
+      </div>
+    </form>
+  </div>
+</div>
 </div><!-- /.settings-flow -->
 {% endblock %}
 

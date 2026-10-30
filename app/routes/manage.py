@@ -9,8 +9,9 @@ from flask import (Blueprint, flash, g, jsonify, redirect, render_template,
 
 from .. import config, mailer, quicker, security
 from ..db import get_db
-from ..util import (csrf_valid, fmt_ts, json_err, json_ok, normalize_slug,
-                    now_ts, setting_get, setting_set, text, to_int)
+from ..util import (api_categories, csrf_valid, fmt_ts, json_err, json_ok,
+                    normalize_slug, now_ts, setting_get, setting_set,
+                    slug_problem, text, to_int)
 
 bp = Blueprint("manage", __name__, url_prefix="/admin")
 
@@ -113,6 +114,30 @@ def settings():
             flash("站点设置已保存", "success")
             return redirect(url_for("manage.settings"))
 
+        elif section == "ratelimit":
+            per_user = to_int(request.form.get("qps_per_user"), 0, 0, 10000)
+            per_api = to_int(request.form.get("qps_per_api"), 0, 0, 10000)
+            setting_set("qps_per_user", per_user)
+            setting_set("qps_per_api", per_api)
+            flash("限流设置已保存", "success")
+            return redirect(url_for("manage.settings"))
+
+        elif section == "categories":
+            # 分类每行一个，去空去重，最多 40 个
+            raw = (request.form.get("categories") or "").replace("\r\n", "\n")
+            names, seen = [], set()
+            for line in raw.split("\n"):
+                name = text(line, 32)
+                if name and name not in seen:
+                    seen.add(name)
+                    names.append(name)
+            if len(names) > 40:
+                errors.append("分类最多 40 个")
+            else:
+                setting_set("api_categories", names)
+                flash("接口分类已保存", "success")
+                return redirect(url_for("manage.settings"))
+
         else:
             errors.append("未知的设置分组")
 
@@ -129,6 +154,11 @@ def settings():
             "site_name": setting_get("site_name", "API 分发平台"),
             "register_points": setting_get("register_points", 30),
             "base_url": config.base_url(),
+        },
+        "categories": api_categories(),
+        "ratelimit": {
+            "per_user": setting_get("qps_per_user", 0) or 0,
+            "per_api": setting_get("qps_per_api", 0) or 0,
         },
     }
     return render_template(
@@ -208,8 +238,8 @@ def api_list():
 
     rows = db.query(
         "SELECT id, slug, name, action, wait_flag, max_wait_ms, txt_flag, cost_points, "
-        "fields_json, call_count, success_count, status, maintenance_note, sort_order, updated_at "
-        "FROM apis" + where + " ORDER BY sort_order ASC, id DESC",
+        "fields_json, call_count, success_count, status, maintenance_note, category, updated_at "
+        "FROM apis" + where + " ORDER BY id DESC",
         tuple(args),
     )
     for row in rows:
@@ -238,6 +268,7 @@ def _api_form_context(api: dict | None, errors: list[str], form_fields: list[dic
         shown_fields=form_fields or [],
         max_wait=quicker.MAX_WAIT_LIMIT,
         status_choices=quicker.STATUS_CHOICES,
+        categories=api_categories(),
     )
 
 
@@ -254,14 +285,15 @@ def _read_api_form(form) -> tuple[dict, list[dict], list[str]]:
         "cost_points": to_int(form.get("cost_points"), 0, 0, 1000000),
         "status": quicker.normalize_status(form.get("status", quicker.STATUS_ONLINE)),
         "maintenance_note": text(form.get("maintenance_note"), 200),
-        "sort_order": to_int(form.get("sort_order"), 0, -99999, 99999),
+        "category": text(form.get("category"), 32),
     }
     if not data["name"]:
         errors.append("API 名称必填")
-    if not data["slug"]:
-        errors.append("调用标识（slug）必填，只能用小写字母、数字、下划线、短横线")
-    if len(data["slug"]) < 2:
-        errors.append("调用标识至少 2 个字符")
+    # 调用标识必须非空且唯一；格式问题统一由 slug_problem 判定，
+    # 避免校验规则散落在多处、改一处漏一处。
+    problem = slug_problem(data["slug"])
+    if problem:
+        errors.append(problem)
 
     if data["wait_flag"] and data["max_wait_ms"] <= 0:
         errors.append("开启等待结果时，maxWaitMs 必须大于 0")
@@ -303,7 +335,7 @@ def api_new():
     api = {
         "name": "", "slug": "", "description": "", "action": "",
         "wait_flag": 1, "max_wait_ms": quicker.MAX_WAIT_LIMIT, "txt_flag": 0,
-        "cost_points": 0, "status": 1, "sort_order": 0,
+        "cost_points": 0, "status": 1, "category": "",
     }
 
     if request.method == "POST":
@@ -314,13 +346,13 @@ def api_new():
         if not errors:
             api_id = db.insert(
                 "INSERT INTO apis (slug, name, description, action, wait_flag, max_wait_ms, "
-                "txt_flag, cost_points, fields_json, status, maintenance_note, sort_order, "
+                "txt_flag, cost_points, fields_json, status, maintenance_note, category, "
                 "created_at, updated_at) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (api["slug"], api["name"], api["description"], api["action"], api["wait_flag"],
                  api["max_wait_ms"], api["txt_flag"], api["cost_points"],
                  json.dumps(fields, ensure_ascii=False), api["status"],
-                 api["maintenance_note"], api["sort_order"],
+                 api["maintenance_note"], api["category"],
                  now_ts(), now_ts()),
             )
             flash("API「%s」已创建" % api["name"], "success")
@@ -357,11 +389,11 @@ def api_edit(api_id: int):
             db.execute(
                 "UPDATE apis SET slug=%s, name=%s, description=%s, action=%s, wait_flag=%s, "
                 "max_wait_ms=%s, txt_flag=%s, cost_points=%s, fields_json=%s, status=%s, "
-                "maintenance_note=%s, sort_order=%s, updated_at=%s WHERE id=%s",
+                "maintenance_note=%s, category=%s, updated_at=%s WHERE id=%s",
                 (draft["slug"], draft["name"], draft["description"], draft["action"],
                  draft["wait_flag"], draft["max_wait_ms"], draft["txt_flag"], draft["cost_points"],
                  json.dumps(fields, ensure_ascii=False), draft["status"],
-                 draft["maintenance_note"], draft["sort_order"],
+                 draft["maintenance_note"], draft["category"],
                  now_ts(), api_id),
             )
             flash("API「%s」已保存" % draft["name"], "success")

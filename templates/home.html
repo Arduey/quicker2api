@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_api_card.html" import api_card, filter_bar with context %}
+{% block title %}{{ site_name }} · 接口目录{% endblock %}
+{#- 已登录才显示侧栏：未登录的访客没有可导航的页面，留白反而更清爽 -#}
+{% block sidebar %}{% if viewer %}{% include "_sidebar.html" %}{% endif %}{% endblock %}
+{% block heading %}{{ site_name }}{% endblock %}
+{% block subheading %}
+<p class="page-lead">这些是当前可用的接口。点开任意一个能看参数和调用方式；登录后可以收藏、直接调试。</p>
+{% endblock %}
+
+{% block topbar_right %}
+{% if viewer %}
+<div class="flex" style="gap:8px;align-items:center">
+  <span class="muted small hide-sm">{{ viewer.nickname }} · {{ viewer.points }} 积分</span>
+  <a class="btn sm primary" href="/u">进入用户中心</a>
+</div>
+{% else %}
+<div class="flex" style="gap:8px">
+  <a class="btn sm" href="/login">登录</a>
+  <a class="btn sm primary" href="/register">注册</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="home-hero">
+  <div class="home-hero-num">
+    <span class="home-hero-value">{{ stats.apis }}</span>
+    <span class="home-hero-label">个可用接口</span>
+  </div>
+  <div class="home-hero-num">
+    <span class="home-hero-value">{{ stats.calls | compact }}</span>
+    <span class="home-hero-label">累计调用</span>
+  </div>
+  {% if not viewer %}
+  <div class="home-hero-note">
+    登录后可收藏接口、直接在页面里填参数调试，并用自己的 API Key 调用。
+  </div>
+  {% endif %}
+</div>
+
+{{ filter_bar('/', keyword, category, categories) }}
+
+{% if apis %}
+<div class="api-grid">
+  {% for api in apis %}
+  {{ api_card(api, viewer, favorites, keyword) }}
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="body">
+    <div class="empty">
+      <div class="big">⌘</div>
+      {% if keyword or category %}
+      没有匹配「{{ keyword or category }}」的接口
+      <div class="mt-2"><a class="btn sm" href="/">看全部接口</a></div>
+      {% else %}
+      还没有上线任何接口
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

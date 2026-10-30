@@ -13,7 +13,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import config
 from .db import init_db
-from .util import compact_number, fmt_ago, fmt_ts, now_ts
+from .util import compact_number, fmt_ago, fmt_ts, highlight, now_ts
 
 PERMANENT_SESSION_LIFETIME = timedelta(days=7)
 
@@ -103,11 +103,13 @@ def create_app() -> Flask:
 def _register_blueprints(app: Flask) -> None:
     from .routes.api_v1 import bp as api_v1_bp
     from .routes.auth import bp as auth_bp
+    from .routes.home import bp as home_bp
     from .routes.install import bp as install_bp
     from .routes.manage import bp as manage_bp
     from .routes.portal import bp as portal_bp
 
     app.register_blueprint(install_bp)
+    app.register_blueprint(home_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(portal_bp)
     app.register_blueprint(manage_bp)
@@ -238,6 +240,8 @@ def _register_filters(app: Flask) -> None:
     app.add_template_filter(fmt_ago, "ago")
     # 大数字缩写：9532 → 9.5k+，125861 → 12w+
     app.add_template_filter(compact_number, "compact")
+    # 搜索命中高亮：把关键词包成 <mark>（内部已做 HTML 转义）
+    app.add_template_filter(highlight, "highlight")
 
 
 def _register_error_handlers(app: Flask) -> None:

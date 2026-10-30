@@ -9,9 +9,10 @@ from flask import (Blueprint, flash, jsonify, redirect, render_template,
 
 from .. import config, quicker, security
 from ..db import get_db
-from ..util import (build_trend, client_ip, csrf_valid, delta_percent,
-                    fmt_cost_ms, json_err, json_ok, nickname_problem,
-                    nickname_taken, normalize_nickname, now_ts, text, to_int)
+from ..util import (api_categories, build_trend, client_ip, csrf_valid,
+                    delta_percent, fmt_cost_ms, json_err, json_ok,
+                    nickname_problem, nickname_taken, normalize_nickname,
+                    now_ts, text, to_int)
 
 bp = Blueprint("portal", __name__)
 
@@ -105,7 +106,7 @@ def dashboard():
                            stats=stats, recent=recent, apis=apis, trend=trend, days=days)
 
 
-def _visible_apis(db) -> list[dict]:
+def _visible_apis(db, keyword: str = "", category: str = "") -> list[dict]:
     """用户可见的接口列表。
 
     维护中的接口也要返回——用户能看到它、看到「维护中」标注，只是不能调用。
@@ -114,16 +115,32 @@ def _visible_apis(db) -> list[dict]:
     平均耗时用一条 LEFT JOIN 聚合取回，避免每个接口单独查一次（N+1）。
     只统计成功的调用：失败的多是超时或上游报错，耗时不代表接口正常表现，
     混进来会把平均值拉到几十秒，反而误导。
+
+    关键词按「接口名称 / 说明 里含该内容」匹配（精准子串，不是分词）。
     """
+    where = ["a.status IN (%s, %s)"]
+    args: list = [quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE]
+
+    if category:
+        where.append("a.category = %s")
+        args.append(category)
+
+    if keyword:
+        # % 和 _ 在 LIKE 里是通配符，用户搜这两个字面字符时要转义
+        like = "%" + keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        where.append("(a.name LIKE %s OR a.description LIKE %s)")
+        args.extend([like, like])
+
     rows = db.query(
         "SELECT a.id, a.slug, a.name, a.description, a.cost_points, a.fields_json, "
         "a.call_count, a.success_count, a.status, a.maintenance_note, a.created_at, "
+        "a.category, "
         "AVG(CASE WHEN l.is_success = 1 THEN l.time_cost_ms END) AS avg_ms "
         "FROM apis a LEFT JOIN api_logs l ON l.api_id = a.id "
-        "WHERE a.status IN (%s, %s) "
+        "WHERE " + " AND ".join(where) + " "
         "GROUP BY a.id "
-        "ORDER BY a.sort_order ASC, a.id ASC",
-        (quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE),
+        "ORDER BY a.id ASC",
+        tuple(args),
     )
     now = now_ts()
     for row in rows:
@@ -148,14 +165,28 @@ def _visible_apis(db) -> list[dict]:
 
 
 # ═════════════════════ API 列表 & 调试 ═════════════════════
+def _favorite_ids(db, viewer) -> set[int]:
+    """当前用户收藏的接口 id 集合。未登录返回空集合。"""
+    if not viewer:
+        return set()
+    rows = db.query("SELECT api_id FROM api_favorites WHERE user_id = %s",
+                    (viewer["id"],))
+    return {int(r["api_id"]) for r in rows}
+
+
 @bp.get("/u/apis")
 @guard
 def api_list():
     viewer = security.current_viewer()
     db = get_db()
+    keyword = text(request.args.get("q"), 64)
+    category = text(request.args.get("category"), 32)
+    apis = _visible_apis(db, keyword=keyword, category=category)
     return render_template("portal/apis.html", viewer=viewer, user=viewer,
                            is_admin=security.viewer_is_admin(viewer),
-                           apis=_visible_apis(db))
+                           apis=apis, keyword=keyword, category=category,
+                           categories=api_categories(),
+                           favorites=_favorite_ids(db, viewer))
 
 
 @bp.get("/u/apis/<slug>")

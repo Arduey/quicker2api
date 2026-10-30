@@ -354,3 +354,74 @@ def settings_all() -> dict:
         except (TypeError, ValueError):
             result[row["k"]] = row["v"]
     return result
+
+
+# ───────────────────────── 接口分类 ─────────────────────────
+DEFAULT_CATEGORIES = ["消息推送", "数据处理", "文件操作", "自动化", "其他"]
+
+
+def api_categories() -> list[str]:
+    """平台预设的接口分类。
+
+    存在 settings 表里，管理员可在「平台设置」中维护。
+    未配置时用一组默认分类，避免新站点下拉框是空的。
+    """
+    stored = setting_get("api_categories", None)
+    if isinstance(stored, list):
+        names = [str(x).strip() for x in stored if str(x).strip()]
+        if names:
+            return names[:40]
+    return list(DEFAULT_CATEGORIES)
+
+
+def slug_problem(slug: str) -> str:
+    """检查调用标识（slug）是否合规，返回错误文案（空 = 合规）。
+
+    要求：非空、2-64 字符、只用小写字母/数字/下划线/短横线，
+    且不能以短横线开头或结尾（URL 里容易看错）。
+    """
+    value = (slug or "").strip()
+    if not value:
+        return "调用标识不能为空"
+    if len(value) < 2:
+        return "调用标识至少 2 个字符"
+    if len(value) > 64:
+        return "调用标识最多 64 个字符"
+    if not re.fullmatch(r"[a-z0-9_-]+", value):
+        return "调用标识只能用小写字母、数字、下划线、短横线"
+    if value.startswith("-") or value.endswith("-"):
+        return "调用标识不能以短横线开头或结尾"
+    if re.fullmatch(r"[0-9_-]+", value):
+        return "调用标识不能是纯数字或纯符号"
+    return ""
+
+
+# ───────────────────────── 搜索命中高亮 ─────────────────────────
+def highlight(text_value, keyword, max_len: int = 200) -> "Markup":
+    """把 keyword 在文本里的出现位置用 <mark> 包起来。
+
+    安全要点：先对原文做 HTML 转义，再插入标签。
+    如果顺序反过来（先插标签再转义），用户输入的 <script> 就会被浏览器执行。
+    """
+    from markupsafe import Markup, escape
+
+    raw = "" if text_value is None else str(text_value)
+    if len(raw) > max_len:
+        raw = raw[:max_len] + "…"
+    kw = "" if keyword is None else str(keyword).strip()
+
+    if not kw:
+        return escape(raw)
+
+    # 逐段拼接：转义后的文本 + <mark> 包裹转义后的命中片段
+    lower_raw, lower_kw = raw.lower(), kw.lower()
+    parts, cursor = [], 0
+    while True:
+        hit = lower_raw.find(lower_kw, cursor)
+        if hit < 0:
+            parts.append(escape(raw[cursor:]))
+            break
+        parts.append(escape(raw[cursor:hit]))
+        parts.append(Markup("<mark>") + escape(raw[hit:hit + len(kw)]) + Markup("</mark>"))
+        cursor = hit + len(kw)
+    return Markup("").join(parts)

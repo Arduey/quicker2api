@@ -28,15 +28,6 @@ def safe_next(target: str | None, fallback: str) -> str:
     return value
 
 
-@bp.get("/")
-def index():
-    """站点根路径：按身份分流，避免装好后访问域名直接 404。"""
-    viewer = security.current_viewer()
-    if viewer is not None:
-        return redirect(url_for("portal.dashboard"))
-    return redirect(url_for("auth.login"))
-
-
 # ═════════════════════ 登录（唯一入口，管理员就是用户） ═════════════════════
 @bp.route("/login", methods=["GET", "POST"])
 def login():

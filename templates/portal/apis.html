@@ -1,77 +1,38 @@
 {% extends "base.html" %}
+{% from "_api_card.html" import api_card, filter_bar with context %}
 {% block title %}可用接口 · {{ site_name }}{% endblock %}
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
 {% block heading %}接口目录{% endblock %}
 {% block subheading %}<p class="page-lead">这里是可以调用的接口。点开任意一个，能填参数直接试、也能看到调用方式。</p>{% endblock %}
 
 {% block content %}
-{% if viewer.is_admin %}
+{% if is_admin %}
 <div class="alert info small">
   <span>你可以像普通用户一样点卡片调用，也可以点右上角「编辑」直接改接口配置。</span>
 </div>
 {% endif %}
 
+{{ filter_bar('/u/apis', keyword, category, categories) }}
+
 {% if apis %}
 <div class="api-grid">
   {% for api in apis %}
-  <div class="api-card-wrap">
-    <a class="api-card {{ 'is-maint' if api.in_maintenance }}" href="/u/apis/{{ api.slug }}">
-      <div class="api-card-top">
-        <span class="api-card-name">
-          {{ api.name }}
-          {% if api.is_new %}<span class="api-new" title="最近 7 天新增">NEW</span>{% endif %}
-        </span>
-        {% if api.cost_points %}
-        <span class="badge brand">{{ api.cost_points }} 积分/次</span>
-        {% else %}
-        <span class="badge free">免费</span>
-        {% endif %}
-      </div>
-
-      {% if api.description %}
-      <p class="api-card-desc">{{ api.description }}</p>
-      {% endif %}
-
-      {% if api.in_maintenance %}
-      <div class="maint-tag">
-        <span class="maint-dot"></span>维护中 · 暂不可调用
-        {% if api.maintenance_note %}<span class="maint-note">{{ api.maintenance_note }}</span>{% endif %}
-      </div>
-      {% endif %}
-
-      <div class="api-card-stats">
-        <div class="api-stat">
-          <span class="api-stat-num">{{ api.call_count }}</span>
-          <span class="api-stat-label">调用次数</span>
-        </div>
-        <div class="api-stat">
-          {% if api.success_rate is none %}
-          <span class="api-stat-num muted">—</span>
-          {% else %}
-          <span class="api-stat-num {{ 'good' if api.success_rate >= 90 else ('warn' if api.success_rate >= 60 else 'bad') }}">{{ api.success_rate }}%</span>
-          {% endif %}
-          <span class="api-stat-label">成功率</span>
-        </div>
-        <div class="api-stat">
-          <span class="api-stat-num {{ 'muted' if api.avg_ms_text == '—' }}">{{ api.avg_ms_text }}</span>
-          <span class="api-stat-label">平均耗时</span>
-        </div>
-      </div>
-    </a>
-
-    {% if viewer.is_admin %}
-    <a class="api-card-edit" href="/admin/apis/{{ api.id }}" title="到后台编辑这个接口">编辑</a>
-    {% endif %}
-  </div>
+  {{ api_card(api, viewer, favorites, keyword) }}
   {% endfor %}
 </div>
 {% else %}
 <div class="card">
   <div class="body">
     <div class="empty">
-      <div class="big">⌘</div>还没有上线任何接口
-      {% if viewer.is_admin %}
+      <div class="big">⌘</div>
+      {% if keyword or category %}
+      没有匹配「{{ keyword or category }}」的接口
+      <div class="mt-2"><a class="btn sm" href="/u/apis">看全部接口</a></div>
+      {% else %}
+      还没有上线任何接口
+      {% if is_admin %}
       <div class="mt-2"><a class="btn primary" href="/admin/apis/new">去创建一个</a></div>
+      {% endif %}
       {% endif %}
     </div>
   </div>

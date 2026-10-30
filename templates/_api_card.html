@@ -1,0 +1,110 @@
+{#
+  接口卡片（共享组件）
+  ─────────────────────────────────────────────
+  主页和用户中心的接口目录用同一份，避免两处样式/字段走偏。
+
+  参数：
+    api        接口字典（来自 portal._visible_apis）
+    viewer     当前登录者，未登录为 None
+    favorites  已收藏的接口 id 集合
+    keyword    搜索关键词，用于命中高亮（可空）
+#}
+
+{% macro api_card(api, viewer=None, favorites=None, keyword='') -%}
+{%- set fav = favorites and (api.id in favorites) -%}
+<div class="api-card-wrap">
+  <a class="api-card {{ 'is-maint' if api.in_maintenance }}" href="/u/apis/{{ api.slug }}">
+    <div class="api-card-top">
+      <span class="api-card-name">
+        {{ api.name | highlight(keyword) }}
+        {% if api.is_new %}<span class="api-new" title="最近 7 天新增">NEW</span>{% endif %}
+      </span>
+      {% if api.cost_points %}
+      <span class="badge brand">{{ api.cost_points }} 积分/次</span>
+      {% else %}
+      <span class="badge free">免费</span>
+      {% endif %}
+    </div>
+
+    {% if api.description %}
+    <p class="api-card-desc">{{ api.description | highlight(keyword) }}</p>
+    {% endif %}
+
+    {% if api.in_maintenance %}
+    <div class="maint-tag">
+      <span class="maint-dot"></span>维护中 · 暂不可调用
+      {% if api.maintenance_note %}<span class="maint-note">{{ api.maintenance_note }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="api-card-stats">
+      <div class="api-stat">
+        <span class="api-stat-num">{{ api.call_count }}</span>
+        <span class="api-stat-label">调用次数</span>
+      </div>
+      <div class="api-stat">
+        {% if api.success_rate is none %}
+        <span class="api-stat-num muted">—</span>
+        {% else %}
+        <span class="api-stat-num {{ 'good' if api.success_rate >= 90 else ('warn' if api.success_rate >= 60 else 'bad') }}">{{ api.success_rate }}%</span>
+        {% endif %}
+        <span class="api-stat-label">成功率</span>
+      </div>
+      <div class="api-stat">
+        <span class="api-stat-num {{ 'muted' if api.avg_ms_text == '—' }}">{{ api.avg_ms_text }}</span>
+        <span class="api-stat-label">平均耗时</span>
+      </div>
+    </div>
+  </a>
+
+  {% if viewer %}
+  {#- 收藏按钮：叠在卡片右上角。用 POST 表单，未登录时会跳登录页。 -#}
+  <form class="fav-form" method="post" action="/favorites/{{ api.id }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="back" value="{{ request.full_path }}">
+    <button type="submit" class="fav-btn {{ 'on' if fav }}"
+            title="{{ '取消收藏' if fav else '收藏这个接口' }}"
+            aria-label="{{ '取消收藏' if fav else '收藏' }}"
+            aria-pressed="{{ 'true' if fav else 'false' }}">
+      <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+        <path d="M12 20.3l-1.4-1.3C5.9 14.8 3 12.1 3 8.8 3 6.1 5.1 4 7.8 4c1.5 0 3 .7 4.2 1.9C13.2 4.7 14.7 4 16.2 4 18.9 4 21 6.1 21 8.8c0 3.3-2.9 6-7.6 10.2z"
+              fill="{{ 'currentColor' if fav else 'none' }}"
+              stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </form>
+  {% endif %}
+
+  {% if viewer and viewer.is_admin %}
+  <a class="api-card-edit" href="/admin/apis/{{ api.id }}" title="到后台编辑这个接口">编辑</a>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+
+{#- 搜索 + 分类筛选栏。主页和接口目录共用。 -#}
+{% macro filter_bar(action, keyword='', category='', categories=None) -%}
+<form class="api-filter" method="get" action="{{ action }}">
+  <div class="api-filter-search">
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="api-filter-icon">
+      <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    <input type="search" name="q" value="{{ keyword }}"
+           placeholder="搜索接口名称或说明" autocomplete="off">
+    {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+  </div>
+  {% if categories %}
+  <select name="category" class="api-filter-cat" onchange="this.form.submit()">
+    <option value="">全部分类</option>
+    {% for name in categories %}
+    <option value="{{ name }}" {{ 'selected' if category == name }}>{{ name }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+  <button class="btn sm" type="submit">搜索</button>
+  {% if keyword or category %}
+  <a class="btn sm ghost" href="{{ action }}">清除</a>
+  {% endif %}
+</form>
+{%- endmacro %}

@@ -39,12 +39,12 @@ CREATE TABLE IF NOT EXISTS apis (
   status TINYINT NOT NULL DEFAULT 1,
   maintenance_note VARCHAR(200) NOT NULL DEFAULT '',
   response_example MEDIUMTEXT,
-  sort_order INT NOT NULL DEFAULT 0,
+  category VARCHAR(32) NOT NULL DEFAULT '',
   created_at INT NOT NULL DEFAULT 0,
   updated_at INT NOT NULL DEFAULT 0,
   PRIMARY KEY (id),
   UNIQUE KEY uk_api_slug (slug),
-  KEY idx_api_status (status, sort_order)
+  KEY idx_api_status (status, category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS api_logs (
@@ -106,4 +106,27 @@ CREATE TABLE IF NOT EXISTS settings (
   v MEDIUMTEXT,
   updated_at INT NOT NULL DEFAULT 0,
   PRIMARY KEY (k)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 用户收藏的接口。一个用户对同一接口只收藏一次。
+CREATE TABLE IF NOT EXISTS api_favorites (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  api_id INT UNSIGNED NOT NULL,
+  created_at INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_fav_user_api (user_id, api_id),
+  KEY idx_fav_user (user_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- QPS 限流计数。放在数据库而不是进程内存，
+-- 因为 gunicorn 是多 worker，内存计数各算各的，限流会失效。
+-- 按 (维度, 目标, 秒级时间戳) 累加，过期行由清理逻辑删除。
+CREATE TABLE IF NOT EXISTS rate_counters (
+  bucket VARCHAR(24) NOT NULL,
+  target VARCHAR(64) NOT NULL,
+  second_ts INT NOT NULL,
+  hits INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (bucket, target, second_ts),
+  KEY idx_rate_ts (second_ts)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

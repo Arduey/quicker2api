@@ -23,7 +23,7 @@ import json
 
 from flask import Blueprint, jsonify, request
 
-from .. import quicker, security
+from .. import quicker, ratelimit, security
 from ..db import get_db
 from ..util import client_ip, json_err, now_ts, text
 
@@ -243,7 +243,7 @@ def list_apis():
     db = get_db()
     rows = db.query(
         "SELECT slug, name, description, cost_points, fields_json, call_count "
-        "FROM apis WHERE status = 1 ORDER BY sort_order ASC, id ASC"
+        "FROM apis WHERE status = 1 ORDER BY id ASC"
     )
     out = []
     for row in rows:
@@ -320,6 +320,19 @@ def me():
 
 
 # ═════════════════════ 执行调用 ═════════════════════
+def _rate_limited(user, api):
+    """QPS 限流检查。超限返回 429 响应，否则返回 None。"""
+    reason = ratelimit.check(user.get("id"), api.get("id"))
+    if not reason:
+        # 顺手清理过期计数（内部按概率触发，不会每次都删）
+        ratelimit.cleanup()
+        return None
+    resp = jsonify({"ok": False, "error": {"code": "rate_limited", "message": reason}})
+    resp.status_code = 429
+    resp.headers["Retry-After"] = "1"
+    return resp
+
+
 @bp.route("/<slug>", methods=["POST"])
 def call_api(slug: str):
     user, err = authenticate()
@@ -329,6 +342,10 @@ def call_api(slug: str):
     api, err = resolve_callable(slug)
     if err is not None:
         return err
+
+    limited = _rate_limited(user, api)
+    if limited is not None:
+        return limited
 
     fields = api_fields(api)
     values = collect_values(fields)
@@ -351,6 +368,10 @@ def call_api_get(slug: str):
     api, err = resolve_callable(slug)
     if err is not None:
         return err
+
+    limited = _rate_limited(user, api)
+    if limited is not None:
+        return limited
 
     fields = api_fields(api)
     values = {}
