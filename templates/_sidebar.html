@@ -67,7 +67,7 @@
     <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
       {{ icon('logs') }}<span class="nav-text">调用明细</span>
       {% if nav_badges and nav_badges.calls_today is not none %}
-      <span class="nav-badge {{ 'is-zero' if not nav_badges.calls_today }}"
+      <span class="nav-badge"
             title="近 24 小时调用 {{ nav_badges.calls_today }} 次">{{ nav_badges.calls_today | compact }}</span>
       {% endif %}
     </a>
@@ -88,14 +88,14 @@
     <a href="/admin/apis" class="{{ 'active' if request.path.startswith('/admin/apis') }}">
       {{ icon('server') }}<span class="nav-text">接口配置</span>
       {% if nav_badges and nav_badges.maintenance is not none %}
-      <span class="nav-badge is-warn {{ 'is-zero' if not nav_badges.maintenance }}"
+      <span class="nav-badge"
             title="维护中的接口数量">{{ nav_badges.maintenance }}</span>
       {% endif %}
     </a>
     <a href="/admin/users" class="{{ 'active' if request.path.startswith('/admin/users') }}">
       {{ icon('users') }}<span class="nav-text">用户账户</span>
       {% if nav_badges and nav_badges.users is not none %}
-      <span class="nav-badge {{ 'is-zero' if not nav_badges.users }}"
+      <span class="nav-badge"
             title="注册用户总数（{{ nav_badges.users }}）">{{ nav_badges.users | compact }}</span>
       {% endif %}
     </a>
@@ -105,7 +105,7 @@
     <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') }}">
       {{ icon('logs') }}<span class="nav-text">全站明细</span>
       {% if nav_badges and nav_badges.total_calls is not none %}
-      <span class="nav-badge {{ 'is-zero' if not nav_badges.total_calls }}"
+      <span class="nav-badge"
             title="全站累计调用 {{ nav_badges.total_calls }} 次">{{ nav_badges.total_calls | compact }}</span>
       {% endif %}
     </a>

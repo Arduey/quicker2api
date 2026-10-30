@@ -216,15 +216,20 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 }
 .sidebar .nav-text { min-width: 0; }
 
-/* 徽章：圆形小绿点（对应规范中的 Inbox 数字徽章） */
+/* 徽章：统一使用 #82FF1C 亮绿底 + 深墨字。
+   不再按状态区分颜色——所有气泡外观一致，数值高低由数字本身表达。
+   亮绿底必须配深色文字才看得清（白字对比度不到 1.5:1）。 */
 .sidebar .nav-badge {
   margin-left: auto;
   flex: 0 0 auto;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  display: grid;
-  place-items: center;
+  /* 用 flex 居中比 grid 更可控，配合 line-height:1 与 height 对齐，
+     数字在气泡内水平、垂直都居中，不会因字体基线差异偏上 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   background: #82ff1c;
   color: #17280a;
@@ -232,24 +237,17 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  text-align: center;
+  box-sizing: border-box;
 }
-/* 数值为 0 时保留位置但视觉弱化，让用户知道这里有个计数 */
-.sidebar .nav-badge.is-zero {
-  background: #e9ece6;
-  color: #98a194;
-  font-weight: 600;
-}
-/* 维护类徽章用警示色，和「调用数」区分开 */
-.sidebar .nav-badge.is-warn {
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-/* 放在 is-warn 之后，保证「0」始终是弱化的灰色，不会被警示色覆盖成假告警 */
+/* 下面两个类在模板里仍会输出，但不再改变配色，
+   只保留类名便于以后需要时再区分。 */
 .sidebar .nav-badge.is-zero,
+.sidebar .nav-badge.is-warn,
 .sidebar .nav-badge.is-warn.is-zero {
-  background: #e9ece6;
-  color: #98a194;
-  font-weight: 600;
+  background: #82ff1c;
+  color: #17280a;
+  font-weight: 700;
 }
 
 .sidebar .spacer { flex: 1; min-height: 20px; }
