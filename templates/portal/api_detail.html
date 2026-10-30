@@ -78,11 +78,15 @@
                   {% endif %}
                 </td>
                 <td class="play-input">
-                  {#- 输入框一律留空且不带 placeholder：避免被误认为已填内容 -#}
+                  {#- 说明既显示在问号气泡里，也作为 placeholder 提示。
+                      输入框本身仍留空、不预填 default，避免被当成已填内容。
+                      没有说明的参数不加 placeholder。 -#}
                   {% if (f.hint or '') | length > 60 %}
-                  <textarea id="pf_{{ f.key }}" name="f_{{ f.key }}" rows="2"></textarea>
+                  <textarea id="pf_{{ f.key }}" name="f_{{ f.key }}" rows="2"
+                            {% if f.hint %}placeholder="{{ f.hint }}"{% endif %}></textarea>
                   {% else %}
-                  <input id="pf_{{ f.key }}" type="text" name="f_{{ f.key }}" value="">
+                  <input id="pf_{{ f.key }}" type="text" name="f_{{ f.key }}" value=""
+                         {% if f.hint %}placeholder="{{ f.hint }}"{% endif %}>
                   {% endif %}
                 </td>
                 <td class="play-req">
