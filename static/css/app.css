@@ -376,6 +376,13 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   margin-left: auto;
   margin-right: auto;
 }
+/* 认证页（注册/重置密码）用：这些页面自己用 .auth-wrap 做整屏居中，
+   .content 的上下 padding 会额外撑高页面，在 900px 高的视口里
+   就会顶出一条本来不需要的纵向滚动条。 */
+.content-flush {
+  padding: 0;
+  max-width: none;
+}
 
 /* ═══════════ 卡片 ═══════════ */
 /* 白底 + 16px 圆角 + 多层柔和阴影，边框极浅作为兜底 */

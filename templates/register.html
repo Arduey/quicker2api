@@ -3,10 +3,13 @@
 
 {% block sidebar %}{% endblock %}
 {% block topbar %}{% endblock %}
+{#- 认证页整屏居中由 .auth-wrap 负责，content 不要再加内边距，
+    否则会在 900px 高的视口里撑出多余的纵向滚动条 -#}
+{% block content_class %} content-flush{% endblock %}
 
 {% block content %}
-<div class="auth-wrap" style="min-height:auto;padding:0">
-  <div class="auth-card" style="max-width:430px;margin:52px auto">
+<div class="auth-wrap">
+  <div class="auth-card" style="max-width:430px">
     <div class="brand-row">
       <div class="dot">P</div>
       <div class="name">{{ site_name }}</div>
