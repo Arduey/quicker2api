@@ -52,9 +52,20 @@
     busy(btn, label) {
       if (!btn) return () => {};
       const original = btn.innerHTML;
+      const isIcon = !!btn.querySelector("svg") && !btn.textContent.trim();
       btn.disabled = true;
-      btn.innerHTML = label || "处理中…";
-      return () => { btn.disabled = false; btn.innerHTML = original; };
+      if (isIcon) {
+        // 图标按钮不能塞文字：会把圆形撑成胶囊、把图标挤歪，
+        // 而且收藏/复制这类操作完成后页面立刻跳转，闪一下文字纯属噪音
+        btn.classList.add("is-busy");
+      } else {
+        btn.innerHTML = label || "处理中…";
+      }
+      return () => {
+        btn.disabled = false;
+        btn.classList.remove("is-busy");
+        btn.innerHTML = original;
+      };
     },
   };
 
@@ -346,10 +357,20 @@
     }
     if (btn && !btn.disabled) {
       const original = btn.innerHTML;
-      btn.innerHTML = btn.getAttribute("data-busy-label") || "处理中…";
+      // 图标按钮不写文字：会把圆形撑成胶囊、图标被挤歪
+      const isIcon = !!btn.querySelector("svg") && !btn.textContent.trim();
       btn.disabled = true;
+      if (isIcon) {
+        btn.classList.add("is-busy");
+      } else {
+        btn.innerHTML = btn.getAttribute("data-busy-label") || "处理中…";
+      }
       // 若页面没跳走就恢复
-      setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 8000);
+      setTimeout(() => {
+        btn.innerHTML = original;
+        btn.disabled = false;
+        btn.classList.remove("is-busy");
+      }, 8000);
     }
   });
 })();
