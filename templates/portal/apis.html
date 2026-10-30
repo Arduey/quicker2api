@@ -21,7 +21,11 @@
           {{ api.name }}
           {% if api.is_new %}<span class="api-new" title="最近 7 天新增">NEW</span>{% endif %}
         </span>
-        <span class="badge {{ 'brand' if api.cost_points else 'ok' }}">{{ api.cost_points }} 积分/次</span>
+        {% if api.cost_points %}
+        <span class="badge brand">{{ api.cost_points }} 积分/次</span>
+        {% else %}
+        <span class="badge free">免费</span>
+        {% endif %}
       </div>
 
       {% if api.description %}

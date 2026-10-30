@@ -791,6 +791,14 @@ td.nowrap, th.nowrap { white-space: nowrap; }
 .badge.warn { background: var(--warn-soft); color: var(--warn); }
 .badge.info { background: var(--info-soft); color: var(--info); }
 .badge.brand { background: var(--brand); color: #fff; }
+/* 免费接口：亮绿底 + 深墨字。
+   这个绿比主色更跳，只在 0 积分的卡片上出现，用作「不花钱」的视觉锚点。
+   亮底必须配深色文字才看得清（白字对比度不足）。 */
+.badge.free {
+  background: #8cff2e;
+  color: #17280a;
+  font-weight: 700;
+}
 .badge.mono { font-family: var(--mono); font-size: 11px; }
 
 /* ═══════════ 提示条 ═══════════ */
