@@ -51,7 +51,13 @@ def create_app() -> Flask:
         SESSION_COOKIE_NAME="tb_session",
         MAX_CONTENT_LENGTH=2 * 1024 * 1024,
         JSON_AS_ASCII=False,
+        # 模板改动立即生效，不依赖重启进程。
+        # 默认（None）在 debug=False 时等于关闭，导致改了模板必须重启
+        # 才看得到，而 CSS/JS 是静态文件每次读盘、立刻生效——两者行为
+        # 不一致，很容易误以为「改了没生效」。
+        TEMPLATES_AUTO_RELOAD=True,
     )
+    app.jinja_env.auto_reload = True
     app.json.ensure_ascii = False
 
     # 数据库（未安装时为空，页面会跳去安装向导）
