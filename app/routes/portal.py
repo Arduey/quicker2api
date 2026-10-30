@@ -190,8 +190,11 @@ def api_list():
 
 
 @bp.get("/u/apis/<slug>")
-@guard
 def api_detail(slug: str):
+    """接口详情页：**游客也能看**，方便判断这个接口是否符合需求。
+
+    只是不能在线调用（调试按钮会引导登录），鉴权信息也不展示。
+    """
     viewer = security.current_viewer()
     db = get_db()
     # 维护中的接口也要能看详情，只是不能调用；下线的才隐藏
@@ -200,7 +203,9 @@ def api_detail(slug: str):
         (slug, quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE))
     if row is None:
         flash("接口不存在或已下线", "error")
-        return redirect(url_for("portal.api_list"))
+        # 游客没有用户中心可回，直接回公开主页
+        return redirect(url_for("home.index") if viewer is None
+                        else url_for("portal.api_list"))
     try:
         fields = json.loads(row["fields_json"] or "[]")
     except ValueError:

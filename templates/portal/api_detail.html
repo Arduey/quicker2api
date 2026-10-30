@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% block title %}{{ api.name }} · {{ site_name }}{% endblock %}
-{% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
+{% block sidebar %}{% if viewer %}{% include "_sidebar.html" %}{% endif %}{% endblock %}
 {% block heading %}{{ api.name }}{% endblock %}
-{% block subheading %}<p class="page-lead">填好参数就能直接调一次，右侧是把它接进自己程序的完整写法。</p>{% endblock %}
+{% block subheading %}<p class="page-lead">{% if viewer %}填好参数就能直接调一次，右侧是把它接进自己程序的完整写法。{% else %}登录后可以填参数直接调试；下面是这个接口的完整调用方式。{% endif %}</p>{% endblock %}
 {% block topbar_right %}
 <div class="flex" style="gap:8px">
-  {% if viewer.is_admin %}
+  {% if viewer and viewer.is_admin %}
   <a class="btn sm primary" href="/admin/apis/{{ api.id }}" title="到后台修改这个接口的配置">✎ 编辑此接口</a>
   {% endif %}
-  <a class="btn sm" href="/u/apis">← 返回接口列表</a>
+  <a class="btn sm" href="{{ '/u/apis' if viewer else '/' }}">← 返回接口列表</a>
 </div>
 {% endblock %}
 
@@ -32,7 +32,9 @@
           {% else %}
           <span class="badge">失败自动退积分</span>
           {% endif %}
+          {% if viewer %}
           <span class="badge">当前余额 {{ user.points }}</span>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -53,7 +55,7 @@
     <div class="card">
       <div class="head">
         <h2>在线调试</h2>
-        {% if viewer.is_admin %}
+        {% if viewer and viewer.is_admin %}
         <div class="actions">
           <a class="btn sm" href="/admin/apis/{{ api.id }}">编辑参数</a>
         </div>
@@ -106,6 +108,11 @@
             <span>该接口维护中，调试已禁用。维护结束后可正常发起调用。</span>
           </div>
           <button class="btn block" type="button" disabled data-busy-label="维护中">维护中，暂不可调用</button>
+          {% elif not viewer %}
+          <div class="alert info small mt-2">
+            <span>登录后可以在这里填参数直接调试，会真实调用并扣除积分。</span>
+          </div>
+          <a class="btn primary block" href="/login">登录后调试</a>
           {% else %}
           <div class="alert warn small mt-2">
             <span>在线调试会真实调用一次接口并扣除 {{ api.cost_points }} 积分（失败自动退回）。</span>
@@ -117,6 +124,11 @@
         <p class="muted small">这个接口不需要任何参数。</p>
         {% if in_maintenance %}
         <button class="btn block" type="button" disabled>维护中，暂不可调用</button>
+        {% elif not viewer %}
+        <div class="alert info small mt-2">
+          <span>登录后可以在这里直接调试，会真实调用并扣除积分。</span>
+        </div>
+        <a class="btn primary block" href="/login">登录后调试</a>
         {% else %}
         <button class="btn primary block" type="button" id="playBtnEmpty">发起调用</button>
         {% endif %}
@@ -146,11 +158,14 @@
       <summary class="head">
         <h2>鉴权</h2>
         <span class="fold-hint"></span>
+        {% if viewer %}
         <div class="actions">
           <button class="btn sm" type="button" data-copy="{{ user.api_key }}" data-copy-message="API Key 已复制">复制 Key</button>
         </div>
+        {% endif %}
       </summary>
       <div class="body">
+        {% if viewer %}
         <p class="small">在请求头里带 API Key（二选一）：</p>
         <pre class="code light">Authorization: Bearer {{ user.api_key[:10] }}…</pre>
         <pre class="code light mt-1">X-API-Key: {{ user.api_key[:10] }}…</pre>
@@ -159,6 +174,20 @@
         </p>
         <pre class="code light">POST /api/auth/token
 {"email": "{{ user.email }}", "password": "***"}</pre>
+        {% else %}
+        {#- 游客看不到真实 Key，只说明鉴权方式 -#}
+        <p class="small">在请求头里带 API Key（二选一）：</p>
+        <pre class="code light">Authorization: Bearer &lt;你的 API Key&gt;</pre>
+        <pre class="code light mt-1">X-API-Key: &lt;你的 API Key&gt;</pre>
+        <p class="small muted mt-2">
+          也可以用邮箱+密码换 JWT（7 天有效）：
+        </p>
+        <pre class="code light">POST /api/auth/token
+{"email": "你的邮箱", "password": "你的密码"}</pre>
+        <div class="alert info small mt-2">
+          <span>登录后这里会显示你自己的 API Key。<a href="/login">去登录</a> 或 <a href="/register">注册</a></span>
+        </div>
+        {% endif %}
       </div>
     </details>
 
@@ -198,7 +227,7 @@
         {% else %}
         <div class="empty" style="padding:20px">
           还没有返回示例
-          {% if viewer.is_admin %}
+          {% if viewer and viewer.is_admin %}
           <div class="mt-2 small">
             去 <a href="/admin/logs">全站明细</a> 找一条成功记录，点「设为返回示例」即可。
           </div>
@@ -216,7 +245,8 @@
 (function () {
   const slug = {{ api.slug | tojson }};
   const endpoint = {{ endpoint | tojson }};
-  const apiKey = {{ user.api_key | tojson }};
+  /* 游客没有 API Key，示例里用占位符代替，避免模板访问 None 报错 */
+  const apiKey = {{ (user.api_key if viewer else "<你的 API Key>") | tojson }};
   const fieldDefs = {{ fields | tojson }};
 
   /* ── 请求示例：多语言切换 ── */
