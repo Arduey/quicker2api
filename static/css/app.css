@@ -317,9 +317,11 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
+/* 顶部栏：背景铺满，但内容跟随内容区的居中网格，否则宽屏下
+   标题贴左、内容居中，两者右边缘错开一截，看起来像没对齐。 */
 .topbar {
   display: flex; align-items: flex-start; gap: 14px;
-  padding: 18px 32px;
+  padding: 18px max(32px, calc((100% - 1600px) / 2 + 32px));
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 20;
@@ -327,7 +329,16 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 .topbar h1 { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.25; letter-spacing: -.02em; }
 .topbar .right { margin-left: auto; display: flex; align-items: center; gap: 10px; padding-top: 2px; }
 
-.content { padding: 26px 32px 72px; max-width: 1200px; width: 100%; }
+/* 内容区：限宽 + 居中。
+   之前只有 max-width 没有 margin:auto，宽屏下内容全贴左边，
+   右侧空出一大块（1920 屏幕上空白占 28%）。 */
+.content {
+  padding: 26px 32px 72px;
+  width: 100%;
+  max-width: 1600px;
+  margin-left: auto;
+  margin-right: auto;
+}
 
 /* ═══════════ 卡片 / 网格 ═══════════ */
 /* 卡片：纯白 + 1px 细边框 + 大圆角，不用投影 */
