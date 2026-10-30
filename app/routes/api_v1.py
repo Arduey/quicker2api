@@ -254,7 +254,7 @@ def list_apis():
             "cost_points": int(row["cost_points"]),
             "call_count": int(row["call_count"]),
             "params": [
-                {"key": f.get("key"), "label": f.get("label"),
+                {"key": f.get("key"),
                  "required": bool(f.get("required")), "default": f.get("default", ""),
                  "hint": f.get("hint", "")}
                 for f in api_fields(row)
@@ -292,7 +292,7 @@ def api_schema(slug: str):
             "maintenance_note": api.get("maintenance_note") or "",
             "callable": quicker.is_callable(api),
             "params": [
-                {"key": f.get("key"), "label": f.get("label"),
+                {"key": f.get("key"),
                  "required": bool(f.get("required")), "default": f.get("default", ""),
                  "hint": f.get("hint", "")}
                 for f in api_fields(api)

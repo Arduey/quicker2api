@@ -269,7 +269,6 @@ def _read_api_form(form) -> tuple[dict, list[dict], list[str]]:
     # data 键值定义：来自动态表单的并行数组
     raw_fields = []
     keys = form.getlist("field_key")
-    labels = form.getlist("field_label")
     requireds = form.getlist("field_required")
     defaults = form.getlist("field_default")
     hints = form.getlist("field_hint")
@@ -285,7 +284,6 @@ def _read_api_form(form) -> tuple[dict, list[dict], list[str]]:
             continue
         raw_fields.append({
             "key": key,
-            "label": at(labels, index) or key,
             "required": at(requireds, index) in ("1", "on", "true"),
             "default": at(defaults, index) or "",
             "hint": at(hints, index) or "",

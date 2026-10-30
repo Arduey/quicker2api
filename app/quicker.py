@@ -161,7 +161,7 @@ def fetch_devices() -> tuple[bool, dict | list]:
 def build_data(fields: list[dict], values: dict) -> str:
     """把"用户填写的 key -> value"做成压缩 JSON 文本，作为 data 的值。
 
-    fields: [{"key": "name", "label": "姓名", "required": true, "default": ""}, ...]
+    fields: [{"key": "name", "required": true, "default": ""}, ...]
     values: {"name": "张三"}
     返回：'{"name":"张三"}'  —— 单层键值对，不换行
     """
@@ -187,7 +187,7 @@ def validate_fields(fields: list[dict], values: dict) -> list[str]:
         raw = values.get(key, None)
         if (raw is None or str(raw).strip() == "") and field.get("required"):
             if not str(field.get("default") or ""):
-                errors.append("缺少必填参数：%s" % (field.get("label") or key))
+                errors.append("缺少必填参数：%s" % key)
     return errors
 
 
@@ -217,7 +217,6 @@ def normalize_field_list(raw) -> tuple[list[dict], list[str]]:
         seen.add(key)
         fields.append({
             "key": key,
-            "label": text(item.get("label"), 64) or key,
             "required": bool(item.get("required")),
             "default": text(item.get("default"), 500),
             "hint": text(item.get("hint"), 200),

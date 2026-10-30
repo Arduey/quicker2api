@@ -883,9 +883,10 @@ pre.code.light {
 }
 
 /* ═══════════ API 参数行编辑器 ═══════════ */
+/* 4 列：键名 / 说明 / 必填 / 删除（显示名已移除） */
 .field-row {
   display: grid;
-  grid-template-columns: 1.1fr 1.1fr 1.7fr 74px 34px;
+  grid-template-columns: 1fr 1.8fr 74px 34px;
   gap: 8px;
   align-items: start;
   padding: 10px;
@@ -918,7 +919,7 @@ pre.code.light {
 .field-row .del:hover { background: var(--danger-soft); border-color: #d9c4c2; }
 .field-row-head {
   display: grid;
-  grid-template-columns: 1.1fr 1.1fr 1.7fr 74px 34px;
+  grid-template-columns: 1fr 1.8fr 74px 34px;
   gap: 8px;
   font-size: 11px;
   font-weight: 600;

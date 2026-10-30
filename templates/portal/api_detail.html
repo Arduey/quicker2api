@@ -58,9 +58,8 @@
           {% for f in fields %}
           <div class="field">
             <label>
-              {{ f.label or f.key }}
+              <span class="inline-code">{{ f.key }}</span>
               {% if f.required %}<span class="req">*</span>{% endif %}
-              <span class="inline-code" style="margin-left:6px">{{ f.key }}</span>
             </label>
             {% if (f.hint or '') | length > 60 %}
             <textarea name="f_{{ f.key }}" rows="3" placeholder="{{ f.hint }}"></textarea>
@@ -147,7 +146,7 @@
           <tbody>
             {% for f in fields %}
             <tr>
-              <td><span class="badge mono">{{ f.key }}</span><div class="muted small">{{ f.label }}</div></td>
+              <td><span class="badge mono">{{ f.key }}</span></td>
               <td class="small">{{ f.hint or '-' }}</td>
               <td>{% if f.required %}<span class="badge fail">必填</span>{% else %}<span class="badge">可选</span>{% endif %}</td>
             </tr>
@@ -174,7 +173,7 @@
   /* ── cURL 示例 ── */
   const sample = {};
   fieldDefs.forEach(function (f) {
-    sample[f.key] = f.default || (f.label || f.key);
+    sample[f.key] = f.default || f.key;
   });
   const bodyJson = JSON.stringify(sample);
   document.getElementById('curlBox').textContent =
