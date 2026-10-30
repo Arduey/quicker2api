@@ -63,6 +63,9 @@
     </a>
     <a href="/u/apis" class="{{ 'active' if request.path.startswith('/u/apis') }}">
       {{ icon('api') }}<span class="nav-text">接口目录</span>
+      {% if nav_badges and nav_badges.apis is not none %}
+      <span class="nav-badge" title="可用接口 {{ nav_badges.apis }} 个">{{ nav_badges.apis | compact }}</span>
+      {% endif %}
     </a>
     <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
       {{ icon('logs') }}<span class="nav-text">调用明细</span>

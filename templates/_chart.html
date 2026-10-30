@@ -33,11 +33,22 @@
 {%- if top_val < 1 -%}{%- set top_val = 1 -%}{%- endif -%}
 
 {#- 计算每个点的坐标 -#}
+{%- set tip_half = 56 -%}
 {%- set ns = namespace(pts=[]) -%}
 {%- for p in series -%}
   {%- set x = pad_l + (inner_w * loop.index0 / ((n - 1) if n > 1 else 1)) -%}
   {%- set y = pad_t + inner_h - (inner_h * p.total / top_val) -%}
-  {%- set ns.pts = ns.pts + [{'x': x, 'y': y, 'p': p}] -%}
+  {#- 提示框宽 112 居中在数据点上。最左/最右的点会让它越出 viewBox，
+     而卡片是 overflow:hidden，超出的部分会被直接裁掉，
+     所以把提示框中心夹到 [56, w-56] 之间。
+     同理，点太靠上时把提示框翻到点下方，避免顶部被切。 -#}
+  {%- set tip_cx = [[x, tip_half] | max, w - tip_half] | min -%}
+  {%- set flip = (y - 64) < 0 -%}
+  {%- set ns.pts = ns.pts + [{
+        'x': x, 'y': y, 'p': p,
+        'tip_dx': tip_cx - x,
+        'tip_dy': (78 if flip else 0)
+      }] -%}
 {%- endfor -%}
 {%- set first_x = ns.pts[0].x -%}
 {%- set last_x = ns.pts[-1].x -%}
@@ -96,7 +107,8 @@
             fill="transparent" class="chart-hit"/>
       <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5"
               fill="#fff" stroke="#000000" stroke-width="2"/>
-      <g class="chart-tip" transform="translate({{ pt.x }}, {{ pt.y }})">
+      <g class="chart-tip"
+         transform="translate({{ '%.1f' % (pt.x + pt.tip_dx) }}, {{ '%.1f' % (pt.y + pt.tip_dy) }})">
         <rect x="-56" y="-64" width="112" height="50" rx="9"
               fill="#fff" stroke="#e5e7eb" stroke-width="1" class="chart-tip-box"/>
         <circle cx="-44" cy="-50" r="3" fill="#000000"/>

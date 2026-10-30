@@ -160,6 +160,7 @@ def _register_hooks(app: Flask) -> None:
         def _nav_badges():
             """侧边栏右侧的小徽章。
 
+                apis         可用接口数（在线 + 维护中，下线的不算）
                 calls_today  本人近 24h 调用数（所有用户都看）
                 maintenance  维护中的接口数（仅管理员）
                 users        注册用户总数（仅管理员）
@@ -168,7 +169,7 @@ def _register_hooks(app: Flask) -> None:
             一律返回数字（包括 0）——之前把 0 过滤掉，结果新站点什么都不显示，
             用户会以为功能没做。0 也要显示，只是样式上弱化。
             """
-            empty = {"calls_today": None, "maintenance": None,
+            empty = {"apis": None, "calls_today": None, "maintenance": None,
                      "users": None, "total_calls": None}
             if viewer is None:
                 return empty
@@ -179,8 +180,15 @@ def _register_hooks(app: Flask) -> None:
             if db is None:
                 return empty
 
-            badges = {"calls_today": 0, "maintenance": None,
+            badges = {"apis": 0, "calls_today": 0, "maintenance": None,
                       "users": None, "total_calls": None}
+
+            # 接口目录：用户能看到几个就显示几个。
+            # 下线的接口对用户完全隐藏，所以不计入，否则数字对不上列表。
+            badges["apis"] = int(db.scalar(
+                "SELECT COUNT(*) AS c FROM apis WHERE status IN (%s, %s)",
+                (_quicker.STATUS_ONLINE, _quicker.STATUS_MAINTENANCE)) or 0)
+
             uid = viewer.get("id")
             if uid:
                 badges["calls_today"] = int(db.scalar(
