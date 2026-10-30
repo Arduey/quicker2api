@@ -232,6 +232,11 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
+/* 维护类徽章用警示色，和「调用数」区分开 */
+.sidebar .nav-badge.is-warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
 
 .sidebar .spacer { flex: 1; min-height: 20px; }
 
@@ -877,6 +882,58 @@ a.stat-card:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .modal-box { animation: none; }
+}
+
+/* ═══════════ 折线图 ═══════════ */
+.chart { width: 100%; }
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.chart-axis {
+  font-size: 10.5px;
+  fill: #7c8580;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.chart-axis-x { font-size: 10px; }
+.chart-empty {
+  padding: 48px 16px;
+  text-align: center;
+  color: #7c8580;
+  font-size: 12.5px;
+}
+
+/* 数据点：默认只显示圆点，提示框隐藏 */
+.chart-dot-group .chart-tip { opacity: 0; pointer-events: none; transition: opacity .12s ease; }
+.chart-dot-group:hover .chart-tip { opacity: 1; }
+.chart-dot-group:hover circle { r: 5; }
+
+/* 悬停热区：透明，扩大命中范围 */
+.chart-hit { cursor: pointer; }
+
+/* 提示框内部文字 */
+.chart-tip-box { filter: drop-shadow(0 4px 10px rgba(26, 31, 22, .10)); }
+.chart-tip-label {
+  font-size: 10.5px;
+  fill: #7c8580;
+  font-family: inherit;
+}
+.chart-tip-value {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #1a1f16;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.chart-tip-rate {
+  font-size: 11px;
+  font-weight: 600;
+  fill: #3f8f36;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ═══════════ 空状态插槽 ═══════════ */

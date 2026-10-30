@@ -9,8 +9,9 @@ from flask import (Blueprint, flash, jsonify, redirect, render_template,
 
 from .. import quicker, security
 from ..db import get_db
-from ..util import (client_ip, csrf_valid, json_err, json_ok, nickname_problem,
-                    nickname_taken, normalize_nickname, now_ts, text, to_int)
+from ..util import (build_trend, client_ip, csrf_valid, json_err, json_ok,
+                    nickname_problem, nickname_taken, normalize_nickname,
+                    now_ts, text, to_int)
 
 bp = Blueprint("portal", __name__)
 
@@ -69,9 +70,18 @@ def dashboard():
         (viewer["id"],),
     )
 
+    # 近 7 日调用趋势（按天聚合，缺的日期补 0，保证横轴连续）
+    trend_rows = db.query(
+        "SELECT DATE(FROM_UNIXTIME(created_at)) AS d, COUNT(*) AS total, "
+        "SUM(is_success = 1) AS ok FROM api_logs "
+        "WHERE user_id = %s AND created_at >= %s GROUP BY d ORDER BY d",
+        (viewer["id"], now_ts() - 7 * 86400),
+    )
+    trend = build_trend(trend_rows, 7)
+
     apis = _visible_apis(db)
     return render_template("portal/dashboard.html", viewer=viewer, user=viewer, is_admin=False,
-                           stats=stats, recent=recent, apis=apis)
+                           stats=stats, recent=recent, apis=apis, trend=trend)
 
 
 def _visible_apis(db) -> list[dict]:

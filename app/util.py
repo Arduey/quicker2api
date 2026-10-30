@@ -50,6 +50,54 @@ def fmt_ago(ts) -> str:
     return fmt_ts(value, "%Y-%m-%d")
 
 
+def day_buckets(days: int = 7) -> list[tuple[int, int, str]]:
+    """返回最近 N 天的 (起始时间戳, 结束时间戳, 日期标签)，含今天，按时间升序。
+
+    标签用「月-日」，图表横轴直接用。
+    """
+    today = datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    out = []
+    for offset in range(days - 1, -1, -1):
+        start = today - timedelta(days=offset)
+        end = start + timedelta(days=1)
+        out.append((
+            int(start.timestamp()),
+            int(end.timestamp()),
+            start.strftime("%m-%d"),
+        ))
+    return out
+
+
+def build_trend(rows, days: int = 7) -> list[dict]:
+    """把「按天 group by」的查询结果整理成连续的 N 天序列。
+
+    rows: [{"d": "2026-10-20", "total": 12, "ok": 10}, ...]
+    没有数据的那天补 0，保证图表横轴连续、不会跳日期。
+    """
+    by_day: dict[str, dict] = {}
+    for row in rows or []:
+        key = str(row.get("d") or "")
+        by_day[key] = {
+            "total": int(row.get("total") or 0),
+            "ok": int(row.get("ok") or 0),
+        }
+
+    series = []
+    for start, _end, label in day_buckets(days):
+        day_key = datetime.fromtimestamp(start, TZ).strftime("%Y-%m-%d")
+        hit = by_day.get(day_key, {})
+        total = hit.get("total", 0)
+        ok_count = hit.get("ok", 0)
+        series.append({
+            "label": label,
+            "total": total,
+            "ok": ok_count,
+            "failed": max(0, total - ok_count),
+            "rate": round(ok_count * 100.0 / total, 1) if total else None,
+        })
+    return series
+
+
 # ───────────────────────── 随机 ─────────────────────────
 def rand_hex(nbytes: int = 16) -> str:
     return secrets.token_hex(nbytes)

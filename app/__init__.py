@@ -151,6 +151,34 @@ def _register_hooks(app: Flask) -> None:
 
         viewer = _safe(current_viewer)
 
+        def _nav_badges():
+            """侧边栏右侧的小徽章：当日调用数、维护中接口数。
+
+            普通用户只看自己的当日调用；管理员额外看到维护中的接口数量
+            （数字为 0 时不显示，避免满屏无意义的 0）。
+            """
+            if viewer is None:
+                return {}
+            from .db import get_db
+            from . import quicker as _quicker
+
+            db = get_db()
+            if db is None:
+                return {}
+
+            badges = {}
+            uid = viewer.get("id")
+            if uid:
+                badges["calls_today"] = int(db.scalar(
+                    "SELECT COUNT(*) AS c FROM api_logs WHERE user_id = %s AND created_at >= %s",
+                    (uid, now_ts() - 86400)) or 0)
+
+            if viewer.get("is_admin"):
+                badges["maintenance"] = int(db.scalar(
+                    "SELECT COUNT(*) AS c FROM apis WHERE status = %s",
+                    (_quicker.STATUS_MAINTENANCE,)) or 0)
+            return {k: v for k, v in badges.items() if v}
+
         return {
             "csrf_token": ensure_csrf,
             "site_name": config.site_name(),
@@ -160,6 +188,7 @@ def _register_hooks(app: Flask) -> None:
             "viewer": viewer,
             "is_admin": viewer_is_admin(viewer),
             "is_admin_view": viewer_is_admin(viewer),
+            "nav_badges": _safe(_nav_badges, {}),
             "now_ts": now_ts,
             "settings": _safe(settings_all, {}),
         }

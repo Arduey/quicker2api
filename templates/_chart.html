@@ -1,0 +1,120 @@
+{#
+  折线图组件：纯 SVG 手绘，无第三方依赖，带渐变填充与悬停提示框。
+
+  用法：
+    {% from "_chart.html" import line_chart %}
+    {{ line_chart(trend, height=180) }}
+
+  trend: [{"label": "10-20", "total": 12, "ok": 10, "failed": 2, "rate": 83.3}, ...]
+
+  注意：Jinja 的 {% set %} 在 {% for %} 内部不会影响外层变量，
+  所以累加/取最大值都必须走 namespace。
+#}
+
+{% macro line_chart(series, height=180, unit='次') -%}
+{%- set n = series | length -%}
+{%- if n == 0 -%}
+<div class="chart-empty">暂无数据</div>
+{%- else -%}
+{%- set pad_l = 34 -%}
+{%- set pad_r = 12 -%}
+{%- set pad_t = 14 -%}
+{%- set pad_b = 26 -%}
+{%- set w = 720 -%}
+{%- set inner_w = w - pad_l - pad_r -%}
+{%- set inner_h = height - pad_t - pad_b -%}
+
+{#- 纵轴上限：取最大值上浮 15%，最小为 1，避免全 0 时除零 -#}
+{%- set mx = namespace(v=0) -%}
+{%- for p in series -%}
+  {%- if p.total > mx.v -%}{%- set mx.v = p.total -%}{%- endif -%}
+{%- endfor -%}
+{%- set top_val = ((mx.v * 1.15) | round(0, 'ceil')) | int -%}
+{%- if top_val < 1 -%}{%- set top_val = 1 -%}{%- endif -%}
+
+{#- 计算每个点的坐标 -#}
+{%- set ns = namespace(pts=[]) -%}
+{%- for p in series -%}
+  {%- set x = pad_l + (inner_w * loop.index0 / ((n - 1) if n > 1 else 1)) -%}
+  {%- set y = pad_t + inner_h - (inner_h * p.total / top_val) -%}
+  {%- set ns.pts = ns.pts + [{'x': x, 'y': y, 'p': p}] -%}
+{%- endfor -%}
+{%- set first_x = ns.pts[0].x -%}
+{%- set last_x = ns.pts[-1].x -%}
+{%- set base_y = pad_t + inner_h -%}
+{%- set gid = 'chart-grad-' ~ range(99999) | random -%}
+{%- set hit_w = inner_w / n -%}
+
+<div class="chart">
+  <svg viewBox="0 0 {{ w }} {{ height }}" preserveAspectRatio="none"
+       class="chart-svg" role="img" aria-label="近 {{ n }} 天调用趋势">
+    <defs>
+      <linearGradient id="{{ gid }}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#6dbf5c" stop-opacity=".30"/>
+        <stop offset="100%" stop-color="#6dbf5c" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+
+    {#- 横向网格线 + 纵轴刻度
+        top_val 很小时按比例算刻度会重复（如 1/0.67/0.33/0 取整后全是 0），
+        所以小范围改用整数刻度，避免纵轴出现多个相同数字。 -#}
+    {%- set ticks = namespace(vals=[]) -%}
+    {%- if top_val <= 4 -%}
+      {%- for i in range(0, top_val + 1) -%}
+        {%- set ticks.vals = ticks.vals + [top_val - i] -%}
+      {%- endfor -%}
+    {%- else -%}
+      {%- for i in range(0, 4) -%}
+        {%- set ticks.vals = ticks.vals + [(top_val * (3 - i) / 3) | round(0, 'floor') | int] -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {%- set tick_n = ticks.vals | length -%}
+    {%- for i in range(0, tick_n) -%}
+    {%- set gy = pad_t + (inner_h * i / ((tick_n - 1) if tick_n > 1 else 1)) -%}
+    <line x1="{{ pad_l }}" y1="{{ gy }}" x2="{{ w - pad_r }}" y2="{{ gy }}"
+          stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3 4"/>
+    <text x="{{ pad_l - 8 }}" y="{{ gy + 3.5 }}" text-anchor="end"
+          class="chart-axis">{{ ticks.vals[i] }}</text>
+    {%- endfor %}
+
+    {#- 渐变填充区域 -#}
+    <path d="M {{ first_x }} {{ base_y }}
+             {%- for pt in ns.pts %} L {{ pt.x }} {{ pt.y }}{% endfor %}
+             L {{ last_x }} {{ base_y }} Z"
+          fill="url(#{{ gid }})"/>
+
+    {#- 折线 -#}
+    <polyline points="{% for pt in ns.pts %}{{ pt.x }},{{ pt.y }} {% endfor %}"
+              fill="none" stroke="#5aa84b" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+
+    {#- 数据点、悬停热区与提示框 -#}
+    {%- for pt in ns.pts %}
+    <g class="chart-dot-group">
+      <rect x="{{ pt.x - hit_w / 2 }}" y="{{ pad_t }}"
+            width="{{ hit_w }}" height="{{ inner_h }}"
+            fill="transparent" class="chart-hit"/>
+      <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5"
+              fill="#fff" stroke="#5aa84b" stroke-width="2"/>
+      <g class="chart-tip" transform="translate({{ pt.x }}, {{ pt.y }})">
+        <rect x="-56" y="-64" width="112" height="50" rx="9"
+              fill="#fff" stroke="#e5e7eb" stroke-width="1" class="chart-tip-box"/>
+        <circle cx="-44" cy="-50" r="3" fill="#5aa84b"/>
+        <text x="-37" y="-46.5" class="chart-tip-label">{{ pt.p.label }}</text>
+        <text x="-44" y="-32" class="chart-tip-value">{{ pt.p.total }} {{ unit }}</text>
+        <text x="52" y="-32" text-anchor="end" class="chart-tip-rate">
+          {%- if pt.p.rate is none %}—{% else %}{{ pt.p.rate }}%{% endif -%}
+        </text>
+      </g>
+    </g>
+    {%- endfor %}
+
+    {#- 横轴日期 -#}
+    {%- for pt in ns.pts %}
+    <text x="{{ pt.x }}" y="{{ height - 8 }}" text-anchor="middle"
+          class="chart-axis chart-axis-x">{{ pt.p.label }}</text>
+    {%- endfor %}
+  </svg>
+</div>
+{%- endif -%}
+{%- endmacro %}

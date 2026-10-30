@@ -8,6 +8,7 @@
 {% endblock %}
 
 {% block content %}
+{% from "_chart.html" import line_chart %}
 <div class="grid cols-4 mb-2">
   <div class="stat brand">
     <div class="label">我的积分</div>
@@ -28,6 +29,16 @@
     <div class="label">累计消耗</div>
     <div class="value">{{ stats.spent }}</div>
     <div class="hint">积分</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="head">
+    <h2>近 7 天调用趋势</h2>
+    <div class="actions"><a class="btn sm" href="/u/logs">查看明细</a></div>
+  </div>
+  <div class="body">
+    {{ line_chart(trend, height=190) }}
   </div>
 </div>
 
