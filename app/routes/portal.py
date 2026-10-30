@@ -15,6 +15,9 @@ from ..util import (build_trend, client_ip, csrf_valid, delta_percent,
 
 bp = Blueprint("portal", __name__)
 
+# 最近多少天内新建的接口在卡片上打 NEW 标记
+NEW_API_DAYS = 7
+
 
 def guard(view):
     """用户中心入口。管理员与普通用户共用同一套页面。
@@ -114,7 +117,7 @@ def _visible_apis(db) -> list[dict]:
     """
     rows = db.query(
         "SELECT a.id, a.slug, a.name, a.description, a.cost_points, a.fields_json, "
-        "a.call_count, a.success_count, a.status, a.maintenance_note, "
+        "a.call_count, a.success_count, a.status, a.maintenance_note, a.created_at, "
         "AVG(CASE WHEN l.is_success = 1 THEN l.time_cost_ms END) AS avg_ms "
         "FROM apis a LEFT JOIN api_logs l ON l.api_id = a.id "
         "WHERE a.status IN (%s, %s) "
@@ -122,6 +125,7 @@ def _visible_apis(db) -> list[dict]:
         "ORDER BY a.sort_order ASC, a.id ASC",
         (quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE),
     )
+    now = now_ts()
     for row in rows:
         try:
             row["fields"] = json.loads(row["fields_json"] or "[]")
@@ -136,6 +140,10 @@ def _visible_apis(db) -> list[dict]:
         row["in_maintenance"] = quicker.is_maintenance(row)
         # avg_ms 为空 = 还没有成功调用过，模板显示「—」
         row["avg_ms_text"] = fmt_cost_ms(row.get("avg_ms"))
+        # 最近 7 天新建的接口打 NEW 标记。
+        # created_at 为 0 的是历史数据（早期没有记录时间），不当成新建。
+        created = int(row.get("created_at") or 0)
+        row["is_new"] = bool(created and (now - created) < NEW_API_DAYS * 86400)
     return rows
 
 

@@ -17,7 +17,10 @@
   <div class="api-card-wrap">
     <a class="api-card {{ 'is-maint' if api.in_maintenance }}" href="/u/apis/{{ api.slug }}">
       <div class="api-card-top">
-        <span class="api-card-name">{{ api.name }}</span>
+        <span class="api-card-name">
+          {{ api.name }}
+          {% if api.is_new %}<span class="api-new" title="最近 7 天新增">NEW</span>{% endif %}
+        </span>
         <span class="badge {{ 'brand' if api.cost_points else 'ok' }}">{{ api.cost_points }} 积分/次</span>
       </div>
 

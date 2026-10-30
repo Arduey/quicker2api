@@ -1203,6 +1203,22 @@ pre.code.light {
   letter-spacing: -.01em;
   color: var(--ink);
 }
+
+/* 最近 7 天新增的接口：名字后面的 NEW 小标签。
+   黑底白字与主色一致，字号小、紧贴名字，不抢视线。 */
+.api-new {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  line-height: 1.5;
+  vertical-align: 1px;
+}
 .api-card-desc {
   margin: 0;
   font-size: 12px;
