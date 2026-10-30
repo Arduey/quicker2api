@@ -114,11 +114,16 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="head">
+    {#- 鉴权信息多数人配一次就不再看了，默认折叠只留头部，
+        需要时点开。用原生 details，无 JS 也能工作。 -#}
+    <details class="card card-fold">
+      <summary class="head">
         <h2>鉴权</h2>
-        <div class="actions"><button class="btn sm" type="button" data-copy="{{ user.api_key }}" data-copy-message="API Key 已复制">复制 Key</button></div>
-      </div>
+        <span class="fold-hint"></span>
+        <div class="actions">
+          <button class="btn sm" type="button" data-copy="{{ user.api_key }}" data-copy-message="API Key 已复制">复制 Key</button>
+        </div>
+      </summary>
       <div class="body">
         <p class="small">在请求头里带 API Key（二选一）：</p>
         <pre class="code light">Authorization: Bearer {{ user.api_key[:10] }}…</pre>
@@ -129,7 +134,7 @@
         <pre class="code light">POST /api/auth/token
 {"email": "{{ user.email }}", "password": "***"}</pre>
       </div>
-    </div>
+    </details>
 
     <div class="card">
       <div class="head">
