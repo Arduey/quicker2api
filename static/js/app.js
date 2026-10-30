@@ -344,6 +344,164 @@
     scanSelects(document);
   }
 
+  /* ═══════════ 接口列表：分类 + 搜索的无刷新过滤 ═══════════ */
+  /* 页面一次性渲染了全部可见接口，这里只做客户端过滤：
+     切换分类 / 输入关键词都不回服务器，因此不会刷新页面。
+     同时把状态写进 URL（replaceState），刷新或分享链接仍能复现。
+     没有 JS 时分类链接本身带 href，回车搜索也能提交，功能不丢。 */
+  (function apiFilter() {
+    const grid = document.querySelector("[data-api-grid]");
+    const nav = document.querySelector(".api-cats");
+    if (!grid || !nav) return;
+
+    const cards = Array.from(grid.querySelectorAll(".api-card-wrap"));
+    const searchForm = document.querySelector("[data-api-search]");
+    const input = searchForm ? searchForm.querySelector('input[name="q"]') : null;
+    const countEl = document.querySelector("[data-api-count]");
+    const clearBtn = searchForm ? searchForm.querySelector("[data-api-clear]") : null;
+    const emptyEl = document.querySelector("[data-api-empty]");
+
+    let activeCat = "";
+    let keyword = "";
+
+    // 原始文案先存下来：标红会改 innerHTML，反复输入时得从干净文本重算
+    cards.forEach(function (card) {
+      card._name = card.getAttribute("data-name") || "";
+      card._desc = card.getAttribute("data-desc") || "";
+      card._cat = card.getAttribute("data-cat") || "";
+      card._nameEl = card.querySelector(".js-name");
+      card._descEl = card.querySelector(".js-desc");
+    });
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+      });
+    }
+
+    // 与后端 highlight 过滤器同语义：先整体转义再包 <mark>，避免 XSS
+    function mark(text, kw) {
+      if (!kw) return escapeHtml(text);
+      const lower = text.toLowerCase();
+      const needle = kw.toLowerCase();
+      let out = "";
+      let i = 0;
+      while (true) {
+        const at = lower.indexOf(needle, i);
+        if (at < 0) { out += escapeHtml(text.slice(i)); break; }
+        out += escapeHtml(text.slice(i, at)) +
+          "<mark>" + escapeHtml(text.slice(at, at + needle.length)) + "</mark>";
+        i = at + needle.length;
+      }
+      return out;
+    }
+
+    function apply() {
+      const kw = keyword.trim();
+      // 未分类在目录里是哨兵 __none__，而卡片 data-cat 是空串，比较前要还原
+      const wantCat = activeCat === "__none__" ? "" : activeCat;
+      let shown = 0;
+
+      cards.forEach(function (card) {
+        const okCat = !activeCat || card._cat === wantCat;
+        let okKw = true;
+        if (kw) {
+          const hay = (card._name + "\n" + card._desc).toLowerCase();
+          okKw = hay.indexOf(kw.toLowerCase()) >= 0;
+        }
+        const visible = okCat && okKw;
+        card.hidden = !visible;
+        if (visible) shown += 1;
+
+        // 只重建文本容器，不碰 NEW 标签与收藏按钮
+        if (card._nameEl) card._nameEl.innerHTML = mark(card._name, kw);
+        if (card._descEl) card._descEl.innerHTML = mark(card._desc, kw);
+      });
+
+      // 分类导航高亮
+      nav.querySelectorAll(".api-cat").forEach(function (a) {
+        a.classList.toggle("on", (a.getAttribute("data-cat") || "") === activeCat);
+      });
+
+      if (countEl) {
+        countEl.textContent = (kw || activeCat) ? ("显示 " + shown + " / " + cards.length) : "";
+      }
+      if (clearBtn) clearBtn.hidden = !(kw || activeCat);
+      if (emptyEl) emptyEl.hidden = shown > 0;
+    }
+
+    function syncUrl() {
+      const url = new URL(window.location.href);
+      if (activeCat) url.searchParams.set("category", activeCat);
+      else url.searchParams.delete("category");
+      if (keyword.trim()) url.searchParams.set("q", keyword.trim());
+      else url.searchParams.delete("q");
+      window.history.replaceState(null, "", url.toString());
+    }
+
+    function setCat(cat, push) {
+      activeCat = cat || "";
+      apply();
+      if (push !== false) syncUrl();
+    }
+
+    nav.addEventListener("click", function (ev) {
+      const a = ev.target.closest(".api-cat");
+      if (!a) return;
+      // 只拦左键普通点击；Ctrl/中键等仍走链接（可新标签打开）
+      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      input && (input.value = "");
+      keyword = "";
+      setCat(a.getAttribute("data-cat") || "");
+      // 切分类后回到顶部，否则可能停在空白区
+      grid.scrollIntoView({ block: "nearest" });
+    });
+
+    if (input) {
+      let timer = null;
+      input.addEventListener("input", function () {
+        keyword = input.value;
+        clearTimeout(timer);
+        // 输入时防抖，避免每个字符都重排全部卡片
+        timer = setTimeout(function () { apply(); syncUrl(); }, 120);
+      });
+    }
+
+    if (searchForm) {
+      // 阻止刷新：有 JS 时搜索就是本地过滤
+      searchForm.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        if (input) keyword = input.value;
+        apply();
+        syncUrl();
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function () {
+        if (input) input.value = "";
+        keyword = "";
+        setCat("");
+      });
+    }
+
+    // 初始状态：URL 里的 q / category 优先，其次用服务端渲染时的选中态
+    const params = new URLSearchParams(window.location.search);
+    const initCat = params.get("category");
+    const initKw = params.get("q");
+    if (initCat !== null) activeCat = initCat;
+    else {
+      const on = nav.querySelector(".api-cat.on");
+      activeCat = on ? (on.getAttribute("data-cat") || "") : "";
+    }
+    if (initKw !== null) {
+      keyword = initKw;
+      if (input) input.value = initKw;
+    }
+    apply();
+  })();
+
   /* ── 表单提交后按钮自动禁用（防止重复提交） ── */
   document.addEventListener("submit", (ev) => {
     const form = ev.target;

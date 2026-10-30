@@ -10,15 +10,24 @@
     keyword    搜索关键词，用于命中高亮（可空）
 #}
 
-{% macro api_card(api, viewer=None, favorites=None, keyword='') -%}
+{% macro api_card(api, viewer=None, favorites=None, keyword='', hidden=False) -%}
 {%- set fav = favorites and (api.id in favorites) -%}
 {#- 登录用户才渲染收藏按钮；has-fav 让统计区右侧让出位置，
     避免五角星压住「平均耗时」。游客没有星星，统计区正常铺满。 -#}
-<div class="api-card-wrap{{ ' has-fav' if viewer }}">
+{#- data-* 是给前端无刷新筛选用的：JS 直接读这几个原始值做匹配与标红，
+    不必回服务器取数据。
+    hidden 只用于「无 JS 降级」：服务端按 URL 的 q/category 先把不匹配的
+    卡片藏起来；有 JS 时由 app.js 重新计算并覆盖。 -#}
+<div class="api-card-wrap{{ ' has-fav' if viewer }}"
+     data-api-id="{{ api.id }}"
+     data-name="{{ api.name }}"
+     data-desc="{{ api.description or '' }}"
+     data-cat="{{ api.category or '' }}"{{ ' hidden' if hidden }}>
   <a class="api-card {{ 'is-maint' if api.in_maintenance }}" href="/u/apis/{{ api.slug }}">
     <div class="api-card-top">
       <span class="api-card-name">
-        {{ api.name | highlight(keyword) }}
+        {#- 名称单独包一层，前端标红时只重建这一层，不会冲掉 NEW 标签 -#}
+        <span class="js-name">{{ api.name | highlight(keyword) }}</span>
         {% if api.is_new %}<span class="api-new" title="最近 7 天新增">NEW</span>{% endif %}
       </span>
       {% if api.cost_points %}
@@ -29,7 +38,7 @@
     </div>
 
     {% if api.description %}
-    <p class="api-card-desc">{{ api.description | highlight(keyword) }}</p>
+    <p class="api-card-desc js-desc">{{ api.description | highlight(keyword) }}</p>
     {% endif %}
 
     {% if api.in_maintenance %}
@@ -84,9 +93,11 @@
 {%- endmacro %}
 
 
-{#- 搜索 + 分类筛选栏。主页和接口目录共用。 -#}
-{% macro filter_bar(action, keyword='', category='', categories=None) -%}
-<form class="api-filter" method="get" action="{{ action }}">
+{#- 搜索框。主页和接口目录共用。
+    表单仍带 action/method，JS 不可用时回车也能正常提交（渐进增强）；
+    JS 在时由 app.js 拦截，改为本地过滤，不刷新页面。 -#}
+{% macro search_bar(action, keyword='', category='', total=0) -%}
+<form class="api-filter" method="get" action="{{ action }}" data-api-search>
   <div class="api-filter-search">
     <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="api-filter-icon">
       <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -96,17 +107,41 @@
            placeholder="搜索接口名称或说明" autocomplete="off">
     {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
   </div>
-  {% if categories %}
-  <select name="category" class="api-filter-cat" onchange="this.form.submit()">
-    <option value="">全部分类</option>
-    {% for name in categories %}
-    <option value="{{ name }}" {{ 'selected' if category == name }}>{{ name }}</option>
-    {% endfor %}
-  </select>
-  {% endif %}
   <button class="btn sm" type="submit">搜索</button>
-  {% if keyword or category %}
-  <a class="btn sm ghost" href="{{ action }}">清除</a>
-  {% endif %}
+  <button class="btn sm ghost" type="button" data-api-clear hidden>清除</button>
+  <span class="api-filter-count" data-api-count></span>
 </form>
+{%- endmacro %}
+
+
+{#- 左侧分类目录。只列出「真的有接口」的分类，并显示各自数量。
+    点它不会刷新页面：app.js 读 data-cat 直接在前端过滤卡片。
+    href 保留真实地址，作为无 JS 时的降级。 -#}
+{% macro category_nav(base, keyword='', category='', category_counts=None, api_total=0) -%}
+{%- set qs = ('?q=' + keyword) if keyword else '' -%}
+{%- set counts = category_counts or [] -%}
+{#- 未分类用哨兵 __none__ 表示。
+    不能沿用空串——空串在 URL 里等于「不过滤」，会和「全部接口」撞车，
+    表现为两项同时高亮、点「未分类」却显示全部。 -#}
+<aside class="api-cats">
+  <div class="api-cats-title">分类</div>
+  <a class="api-cat{{ ' on' if not category }}"
+     href="{{ base }}{{ qs }}" data-cat="">
+    <span class="api-cat-name">全部接口</span>
+    <span class="api-cat-num">{{ api_total }}</span>
+  </a>
+  {% for item in counts %}
+  {%- set nm = item.name or '' %}
+  {%- set key = nm if nm else '__none__' %}
+  <a class="api-cat{{ ' on' if category == key }}"
+     href="{{ base }}?category={{ key | urlencode }}{% if keyword %}&q={{ keyword | urlencode }}{% endif %}"
+     data-cat="{{ key }}">
+    <span class="api-cat-name">{{ nm or '未分类' }}</span>
+    <span class="api-cat-num">{{ item.count }}</span>
+  </a>
+  {% endfor %}
+  {% if not counts %}
+  <div class="api-cats-empty">还没有分类</div>
+  {% endif %}
+</aside>
 {%- endmacro %}

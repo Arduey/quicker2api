@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_api_card.html" import api_card, filter_bar with context %}
+{% from "_api_card.html" import api_card, search_bar, category_nav with context %}
 {% block title %}{{ site_name }} · 接口目录{% endblock %}
 {#- 已登录才显示侧栏：未登录的访客没有可导航的页面，留白反而更清爽 -#}
 {% block sidebar %}{% if viewer %}{% include "_sidebar.html" %}{% endif %}{% endblock %}
@@ -40,27 +40,45 @@
   {% endif %}
 </div>
 
-{{ filter_bar('/', keyword, category, categories) }}
+{{ search_bar('/', keyword, category, api_total) }}
 
-{% if apis %}
-<div class="api-grid">
-  {% for api in apis %}
-  {{ api_card(api, viewer, favorites, keyword) }}
-  {% endfor %}
-</div>
-{% else %}
-<div class="card">
-  <div class="body">
-    <div class="empty">
-      <div class="big">⌘</div>
-      {% if keyword or category %}
-      没有匹配「{{ keyword or category }}」的接口
-      <div class="mt-2"><a class="btn sm" href="/">看全部接口</a></div>
-      {% else %}
-      还没有上线任何接口
-      {% endif %}
+{#- 左侧分类目录 + 右侧卡片区。点分类不刷新，由 app.js 本地过滤。 -#}
+<div class="api-layout">
+  {{ category_nav('/', keyword, category, category_counts, api_total) }}
+
+  <div class="api-main">
+    {% if apis %}
+    <div class="api-grid" data-api-grid>
+      {% for api in apis %}
+      {#- hidden 只为「无 JS 降级」：按 URL 里的 category/q 先把不匹配的藏起来。
+          有 JS 时 app.js 会重新计算并覆盖，所以看到的结果一致。 -#}
+      {%- set kw = (keyword or '') | lower -%}
+      {#- 未分类在目录里用哨兵 __none__，这里要还原成空串再比较 -#}
+      {%- set want_cat = '' if category == '__none__' else category -%}
+      {%- set miss_cat = category and (api.category or '') != want_cat -%}
+      {%- set miss_kw = kw and (kw not in ((api.name or '') | lower)) and (kw not in ((api.description or '') | lower)) -%}
+      {{ api_card(api, viewer, favorites, keyword, hidden=(miss_cat or miss_kw)) }}
+      {% endfor %}
     </div>
+    <div class="empty api-noresult" data-api-empty hidden>
+      <div class="big">⌘</div>
+      没有符合条件的接口
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="body">
+        <div class="empty">
+          <div class="big">⌘</div>
+          {% if keyword or category %}
+          没有匹配「{{ keyword or category }}」的接口
+          <div class="mt-2"><a class="btn sm" href="/">看全部接口</a></div>
+          {% else %}
+          还没有上线任何接口
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
-{% endif %}
 {% endblock %}

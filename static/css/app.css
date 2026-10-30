@@ -1298,6 +1298,112 @@ mark {
   border-radius: 2px;
 }
 
+/* 搜索框右侧的结果计数 */
+.api-filter-count {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════ 分类侧边目录 + 卡片区 ═══════════ */
+/* 两栏：左侧固定宽度目录，右侧卡片自适应。
+   目录 sticky 吸顶，卡片多了滚动时分类仍可见。 */
+.api-layout {
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.api-cats {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px;
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, .055);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+}
+.api-cats-title {
+  padding: 2px 8px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.api-cat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: background var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+.api-cat:hover { background: var(--surface-2); color: var(--ink); }
+.api-cat.on {
+  background: rgba(0, 0, 0, .06);
+  color: var(--ink);
+  font-weight: 600;
+}
+.api-cat-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.api-cat-num {
+  flex: 0 0 auto;
+  min-width: 20px;
+  padding: 0 6px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #f0f0f0;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.api-cat.on .api-cat-num { background: var(--brand); color: #fff; }
+.api-cats-empty {
+  padding: 8px 9px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.api-main { min-width: 0; }
+.api-noresult { padding: 40px 0; }
+
+/* 窄屏：目录改成横向滚动的胶囊条，不再占左侧一整列 */
+@media (max-width: 860px) {
+  .api-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .api-cats {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 8px;
+    gap: 6px;
+  }
+  .api-cats-title { display: none; }
+  .api-cat {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--surface-2);
+  }
+}
+
 /* ═══════════ 用户中心：可用接口卡片 ═══════════ */
 /* 收藏按钮：叠在卡片右下角，只有五角星本身。
    不放圆形底、不占布局：统计区因此不用留 padding，

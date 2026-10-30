@@ -15,7 +15,7 @@ from flask import (Blueprint, flash, jsonify, redirect, render_template,
 
 from .. import config, quicker, security
 from ..db import get_db
-from ..util import api_categories, csrf_valid, json_err, json_ok, now_ts, text
+from ..util import csrf_valid, json_err, json_ok, now_ts, text
 
 bp = Blueprint("home", __name__)
 
@@ -46,24 +46,16 @@ def index():
     db = get_db()
     keyword = text(request.args.get("q"), 64)
     category = text(request.args.get("category"), 32)
-    apis, favorites, viewer = _public_apis(db, keyword=keyword, category=category)
+    # 一次性渲染全部可见接口，分类与搜索交给前端过滤（不刷新页面）。
+    # keyword / category 只作为初始选中态传给前端。
+    apis, favorites, viewer = _public_apis(db)
 
-    # 分类下拉框的两类来源合并：
-    #   1. 平台设置里预设的分类（管理员维护的完整清单）
-    #   2. 接口上实际用到、但预设里没有的分类（避免老数据在下拉框里消失）
-    # 注意必须基于「全量接口」收集，不能用筛选后的 apis，
-    # 否则一旦按分类筛选过，下拉框就只剩当前这一个选项。
-    from .portal import _visible_apis
+    # 分类目录只列出「真的有接口」的分类，并带上各自数量。
+    # 注意基于全量（同一 keyword 下）统计，不按当前分类过滤，
+    # 否则点进某个分类后目录就只剩它自己。
+    from .portal import _category_counts
 
-    all_rows = _visible_apis(db)
-    used: list[str] = []
-    for preset in api_categories():
-        if preset not in used:
-            used.append(preset)
-    for row in all_rows:
-        name = (row.get("category") or "").strip()
-        if name and name not in used:
-            used.append(name)
+    counts, total = _category_counts(db, keyword=keyword)
 
     return render_template(
         "home.html",
@@ -74,9 +66,10 @@ def index():
         favorites=favorites,
         keyword=keyword,
         category=category,
-        categories=used,
+        category_counts=counts,
+        api_total=total,
         stats={
-            "apis": len(apis),
+            "apis": total,
             "calls": sum(int(a.get("call_count") or 0) for a in apis),
         },
     )

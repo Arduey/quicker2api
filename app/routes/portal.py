@@ -9,7 +9,7 @@ from flask import (Blueprint, flash, jsonify, redirect, render_template,
 
 from .. import config, quicker, security
 from ..db import get_db
-from ..util import (api_categories, build_trend, client_ip, csrf_valid,
+from ..util import (build_trend, client_ip, csrf_valid,
                     delta_percent, fmt_cost_ms, json_err, json_ok,
                     nickname_problem, nickname_taken, normalize_nickname,
                     now_ts, text, to_int)
@@ -165,6 +165,33 @@ def _visible_apis(db, keyword: str = "", category: str = "") -> list[dict]:
 
 
 # ═════════════════════ API 列表 & 调试 ═════════════════════
+def _category_counts(db, keyword: str = "") -> tuple[list[dict], int]:
+    """统计每个分类下的可见接口数，返回 (分类列表, 总数)。
+
+    只返回「真的有接口」的分类——平台设置里预设但没挂接口的不显示，
+    否则侧边目录会出现一堆点了就空白的入口。
+
+    未归类的接口（category 为空串）统一算作「未分类」，name 用空串表示，
+    由模板决定显示成什么文字。
+    """
+    where = ["a.status IN (%s, %s)"]
+    args: list = [quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE]
+    if keyword:
+        like = "%" + keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        where.append("(a.name LIKE %s OR a.description LIKE %s)")
+        args.extend([like, like])
+
+    rows = db.query(
+        "SELECT a.category AS name, COUNT(*) AS c FROM apis a "
+        "WHERE " + " AND ".join(where) + " "
+        "GROUP BY a.category ORDER BY c DESC, a.category ASC",
+        tuple(args),
+    )
+    counts = [{"name": r["name"] or "", "count": int(r["c"])} for r in rows]
+    total = sum(item["count"] for item in counts)
+    return counts, total
+
+
 def _favorite_ids(db, viewer) -> set[int]:
     """当前用户收藏的接口 id 集合。未登录返回空集合。"""
     if not viewer:
@@ -181,11 +208,15 @@ def api_list():
     db = get_db()
     keyword = text(request.args.get("q"), 64)
     category = text(request.args.get("category"), 32)
-    apis = _visible_apis(db, keyword=keyword, category=category)
+    # 一次性把**全部**可见接口渲染进页面，分类与搜索都交给前端过滤，
+    # 这样切换分类不需要回服务器、也就不会刷新页面。
+    # keyword / category 只用来设置初始选中态（前端加载后立刻应用）。
+    apis = _visible_apis(db)
+    counts, total = _category_counts(db)
     return render_template("portal/apis.html", viewer=viewer, user=viewer,
                            is_admin=security.viewer_is_admin(viewer),
                            apis=apis, keyword=keyword, category=category,
-                           categories=api_categories(),
+                           category_counts=counts, api_total=total,
                            favorites=_favorite_ids(db, viewer))
 
 
