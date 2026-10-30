@@ -673,6 +673,45 @@ tbody tr:hover { background: #fafafa; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.nowrap, th.nowrap { white-space: nowrap; }
 
+/* ═══════════ 在线调试表格 ═══════════ */
+/* 参数说明与输入框合并：说明列单元格分上下两行，
+   上行是文字说明，下行是输入框。行高比普通表格大一些，
+   让「说明 + 输入框」两层不挤。 */
+.play-table { margin-bottom: 4px; }
+.play-table thead th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11.5px;
+}
+.play-table tbody td {
+  padding: 14px;
+  vertical-align: top;
+}
+.play-table tbody tr:hover { background: transparent; }
+.play-table .play-key {
+  width: 1%;
+  white-space: nowrap;
+  padding-top: 16px;
+}
+.play-table .play-input { min-width: 0; }
+.play-table .play-hint {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin-bottom: 7px;
+  word-break: break-word;
+}
+.play-table .play-input input,
+.play-table .play-input textarea {
+  font-size: 13px;
+}
+.play-table .play-req {
+  width: 1%;
+  white-space: nowrap;
+  padding-top: 16px;
+  text-align: right;
+}
+
 /* ═══════════ 徽标 ═══════════ */
 /* 去色：默认为灰阶药丸，语义变体用降饱和的浅底深字 */
 .badge {

@@ -43,6 +43,9 @@
     </div>
     {% endif %}
 
+    {#- 在线调试与参数说明合并成一张表：键名 / 说明+输入框 / 必填。
+        说明列单元格分上下两行——上行是文字说明，下行是输入框，
+        省掉原来「参数说明」那张单独的卡片。 -#}
     <div class="card">
       <div class="head">
         <h2>在线调试</h2>
@@ -55,33 +58,40 @@
       <div class="body">
         {% if fields %}
         <form id="playForm" data-no-busy>
-          {% for f in fields %}
-          {#- 参数名与输入框同一行：键名占固定宽度，输入框占满剩余。
-              hint 只作为 placeholder 提示，不预填成 value（预填会让人
-              以为这就是要提交的内容，且 hint 往往是说明文字而非实际取值）。-#}
-          <div class="field field-inline-play">
-            <label for="pf_{{ f.key }}">
-              <span class="inline-code">{{ f.key }}</span>
-              {% if f.required %}<span class="req">*</span>{% endif %}
-            </label>
-            {% if (f.hint or '') | length > 60 %}
-            <textarea id="pf_{{ f.key }}" name="f_{{ f.key }}" rows="2"
-                      placeholder="{{ f.hint or f.key }}"></textarea>
-            {% else %}
-            <input id="pf_{{ f.key }}" type="text" name="f_{{ f.key }}"
-                   value="{{ f.default or '' }}"
-                   placeholder="{{ f.hint or f.key }}">
-            {% endif %}
-          </div>
-          {% endfor %}
+          <table class="play-table">
+            <thead>
+              <tr><th>键</th><th>说明 / 填写</th><th>必填</th></tr>
+            </thead>
+            <tbody>
+              {% for f in fields %}
+              <tr>
+                <td class="play-key"><span class="badge mono">{{ f.key }}</span></td>
+                <td class="play-input">
+                  <div class="play-hint">{{ f.hint or '—' }}</div>
+                  {% if (f.hint or '') | length > 60 %}
+                  <textarea id="pf_{{ f.key }}" name="f_{{ f.key }}" rows="2"
+                            placeholder="{{ f.hint or f.key }}"></textarea>
+                  {% else %}
+                  <input id="pf_{{ f.key }}" type="text" name="f_{{ f.key }}"
+                         value="{{ f.default or '' }}"
+                         placeholder="{{ f.hint or f.key }}">
+                  {% endif %}
+                </td>
+                <td class="play-req">
+                  {% if f.required %}<span class="badge fail">必填</span>{% else %}<span class="badge">可选</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
 
           {% if in_maintenance %}
-          <div class="alert warn small">
+          <div class="alert warn small mt-2">
             <span>该接口维护中，调试已禁用。维护结束后可正常发起调用。</span>
           </div>
           <button class="btn block" type="button" disabled data-busy-label="维护中">维护中，暂不可调用</button>
           {% else %}
-          <div class="alert warn small">
+          <div class="alert warn small mt-2">
             <span>在线调试会真实调用一次接口并扣除 {{ api.cost_points }} 积分（失败自动退回）。</span>
           </div>
           <button class="btn primary block" type="submit" id="playBtn">发起调用</button>
@@ -152,28 +162,6 @@
           <button type="button" data-lang="http">HTTP</button>
         </div>
         <pre class="code mt-1" id="snippetBox" style="max-height:340px;overflow:auto"></pre>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="head"><h2>参数说明</h2></div>
-      <div class="body flush">
-        {% if fields %}
-        <table>
-          <thead><tr><th>键</th><th>说明</th><th>必填</th></tr></thead>
-          <tbody>
-            {% for f in fields %}
-            <tr>
-              <td><span class="badge mono">{{ f.key }}</span></td>
-              <td class="small">{{ f.hint or '-' }}</td>
-              <td>{% if f.required %}<span class="badge fail">必填</span>{% else %}<span class="badge">可选</span>{% endif %}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div class="empty" style="padding:24px">无参数</div>
-        {% endif %}
       </div>
     </div>
 
