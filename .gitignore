@@ -17,3 +17,6 @@ __pycache__/
 venv/
 *.log
 .DS_Store
+
+# 部署增量比对用的内容哈希清单
+.deploy_manifest.json

@@ -27,11 +27,18 @@ from __future__ import annotations
 
 import argparse
 import ftplib
+import hashlib
+import json
 import os
 import posixpath
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# 记录上次成功上传的内容哈希。
+# 只比文件大小是不够的：把 #6dbf5c 改成 #000000 这类等长替换，
+# 文件大小完全不变，会被误判成「未变化」而跳过上传。
+MANIFEST = os.path.join(ROOT, ".deploy_manifest.json")
 
 # 只同步这些目录 / 文件（和交付包内容一致）
 SYNC_DIRS = ["app", "templates", "static"]
@@ -126,6 +133,32 @@ def remote_size(ftp: ftplib.FTP, path: str) -> int | None:
         return None
 
 
+def file_digest(path: str) -> str:
+    """文件内容哈希，用来判断是否真的变了。"""
+    h = hashlib.sha256()
+    with open(path, "rb") as fp:
+        for chunk in iter(lambda: fp.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_manifest() -> dict:
+    try:
+        with open(MANIFEST, "r", encoding="utf-8") as fp:
+            data = json.load(fp)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_manifest(data: dict) -> None:
+    try:
+        with open(MANIFEST, "w", encoding="utf-8") as fp:
+            json.dump(data, fp, indent=2, sort_keys=True)
+    except OSError as exc:
+        print("警告：写入部署清单失败（下次会重传）：%s" % exc)
+
+
 def ensure_dir(ftp: ftplib.FTP, path: str) -> None:
     """逐级创建远端目录，已存在则跳过。"""
     parts = path.strip("/").split("/")
@@ -201,6 +234,8 @@ def main() -> int:
     uploaded: list[str] = []
     skipped: list[str] = []
     failed: list[tuple[str, str]] = []
+    manifest = load_manifest()
+    new_manifest = dict(manifest)
 
     # 预取远端文件大小，避免每个文件都单独问一遍
     try:
@@ -211,12 +246,21 @@ def main() -> int:
     for rel in local:
         full = os.path.join(ROOT, rel)
         local_size = os.path.getsize(full)
+        digest = file_digest(full)
 
         if not args.all:
-            size = remote_size(ftp, rel)
-            if size is not None and size == local_size:
+            # 优先用内容哈希判断：等长替换（如把 #6dbf5c 改成 #000000）
+            # 文件大小不变，只比大小会漏传。
+            if manifest.get(rel) == digest and remote_size(ftp, rel) == local_size:
                 skipped.append(rel)
                 continue
+            # 没有清单记录的旧项目：大小相同且远端存在才跳过
+            if rel not in manifest:
+                size = remote_size(ftp, rel)
+                if size is not None and size == local_size:
+                    new_manifest[rel] = digest
+                    skipped.append(rel)
+                    continue
 
         if args.dry_run:
             uploaded.append(rel)
@@ -229,6 +273,7 @@ def main() -> int:
             with open(full, "rb") as fp:
                 ftp.storbinary("STOR " + rel, fp)
             uploaded.append(rel)
+            new_manifest[rel] = digest
         except Exception as exc:  # noqa: BLE001
             failed.append((rel, str(exc)))
 
@@ -262,6 +307,9 @@ def main() -> int:
         for rel in uploaded:
             print("  + " + rel)
     else:
+        # 只记成功上传的哈希；失败的下次还会重传
+        if uploaded:
+            save_manifest(new_manifest)
         print("上传 %d 个，跳过 %d 个（未变化），失败 %d 个" % (
             len(uploaded), len(skipped), len(failed)))
         for rel in uploaded:
