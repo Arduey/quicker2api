@@ -45,6 +45,10 @@
           {% endif %}
           <span class="api-stat-label">成功率</span>
         </div>
+        <div class="api-stat">
+          <span class="api-stat-num {{ 'muted' if api.avg_ms_text == '—' }}">{{ api.avg_ms_text }}</span>
+          <span class="api-stat-label">平均耗时</span>
+        </div>
       </div>
     </a>
 

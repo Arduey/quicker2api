@@ -50,6 +50,25 @@ def fmt_ago(ts) -> str:
     return fmt_ts(value, "%Y-%m-%d")
 
 
+def fmt_cost_ms(value) -> str:
+    """把毫秒耗时格式化成可读文本，用于接口卡片的「平均耗时」。
+
+    传 None / 非法值 → "—"（还没成功调用过，不该显示 0 ms 误导）。
+    小于 1 秒显示 "423 ms"，1 秒以上显示 "1.2 s"。
+    """
+    if value is None:
+        return "—"
+    try:
+        ms = float(value)
+    except (TypeError, ValueError):
+        return "—"
+    if ms < 0:
+        return "—"
+    if ms < 1000:
+        return "%d ms" % int(round(ms))
+    return "%.1f s" % (ms / 1000.0)
+
+
 def day_buckets(days: int = 7) -> list[tuple[int, int, str]]:
     """返回最近 N 天的 (起始时间戳, 结束时间戳, 日期标签)，含今天，按时间升序。
 

@@ -10,8 +10,8 @@ from flask import (Blueprint, flash, jsonify, redirect, render_template,
 from .. import quicker, security
 from ..db import get_db
 from ..util import (build_trend, client_ip, csrf_valid, delta_percent,
-                    json_err, json_ok, nickname_problem, nickname_taken,
-                    normalize_nickname, now_ts, text, to_int)
+                    fmt_cost_ms, json_err, json_ok, nickname_problem,
+                    nickname_taken, normalize_nickname, now_ts, text, to_int)
 
 bp = Blueprint("portal", __name__)
 
@@ -107,11 +107,19 @@ def _visible_apis(db) -> list[dict]:
 
     维护中的接口也要返回——用户能看到它、看到「维护中」标注，只是不能调用。
     已下线的才真正隐藏。
+
+    平均耗时用一条 LEFT JOIN 聚合取回，避免每个接口单独查一次（N+1）。
+    只统计成功的调用：失败的多是超时或上游报错，耗时不代表接口正常表现，
+    混进来会把平均值拉到几十秒，反而误导。
     """
     rows = db.query(
-        "SELECT id, slug, name, description, cost_points, fields_json, "
-        "call_count, success_count, status, maintenance_note "
-        "FROM apis WHERE status IN (%s, %s) ORDER BY sort_order ASC, id ASC",
+        "SELECT a.id, a.slug, a.name, a.description, a.cost_points, a.fields_json, "
+        "a.call_count, a.success_count, a.status, a.maintenance_note, "
+        "AVG(CASE WHEN l.is_success = 1 THEN l.time_cost_ms END) AS avg_ms "
+        "FROM apis a LEFT JOIN api_logs l ON l.api_id = a.id "
+        "WHERE a.status IN (%s, %s) "
+        "GROUP BY a.id "
+        "ORDER BY a.sort_order ASC, a.id ASC",
         (quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE),
     )
     for row in rows:
@@ -126,6 +134,8 @@ def _visible_apis(db) -> list[dict]:
         row["status_label"] = quicker.status_label(row.get("status"))
         row["callable"] = quicker.is_callable(row)
         row["in_maintenance"] = quicker.is_maintenance(row)
+        # avg_ms 为空 = 还没有成功调用过，模板显示「—」
+        row["avg_ms_text"] = fmt_cost_ms(row.get("avg_ms"))
     return rows
 
 
