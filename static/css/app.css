@@ -216,38 +216,27 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 }
 .sidebar .nav-text { min-width: 0; }
 
-/* 徽章：统一使用 #82FF1C 亮绿底 + 深墨字。
-   不再按状态区分颜色——所有气泡外观一致，数值高低由数字本身表达。
-   亮绿底必须配深色文字才看得清（白字对比度不到 1.5:1）。 */
+/* 徽章：统一 #82FF1C 亮绿底 + 深墨字。
+   居中：grid 居中 + line-height 显式设为与 box 等高，
+   避免行框（16.5px）与容器（20px）奇偶不齐产生 1px 上下偏差。 */
 .sidebar .nav-badge {
   margin-left: auto;
-  flex: 0 0 auto;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  /* 用 flex 居中比 grid 更可控，配合 line-height:1 与 height 对齐，
-     数字在气泡内水平、垂直都居中，不会因字体基线差异偏上 */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
   background: #82ff1c;
   color: #17280a;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  /* 让行盒与容器等高，数字墨迹才能落在几何中心 */
+  align-content: center;
+  justify-content: center;
   text-align: center;
-  box-sizing: border-box;
-}
-/* 下面两个类在模板里仍会输出，但不再改变配色，
-   只保留类名便于以后需要时再区分。 */
-.sidebar .nav-badge.is-zero,
-.sidebar .nav-badge.is-warn,
-.sidebar .nav-badge.is-warn.is-zero {
-  background: #82ff1c;
-  color: #17280a;
-  font-weight: 700;
 }
 
 .sidebar .spacer { flex: 1; min-height: 20px; }
