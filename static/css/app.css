@@ -1100,8 +1100,20 @@ pre.code.light {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
   gap: 12px;
+  /* 卡片统一等高：
+     - align-items: stretch 让同一行内的卡片拉平
+     - grid-auto-rows: 1fr 让「所有行」都取最高那一行的高度，
+       否则最后一行只有一张卡时会比上面那一行矮一截 */
+  align-items: stretch;
+  grid-auto-rows: 1fr;
 }
-.api-card-wrap { position: relative; }
+/* 包一层是为了放绝对定位的「编辑」按钮，
+   所以这一层也要撑满，否则内层 .api-card 拿不到整行的高度 */
+.api-card-wrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
 .api-card-edit {
   position: absolute;
   top: 10px;
@@ -1182,6 +1194,9 @@ pre.code.light {
   flex-direction: column;
   gap: 8px;
   padding: 15px 16px;
+  /* 撑满外层容器：否则宽度由内容决定，同一行里会出现一宽一窄 */
+  flex: 1;
+  min-width: 0;
   background: var(--surface);
   border: 1px solid rgba(0, 0, 0, .06);
   border-radius: var(--radius-card);
@@ -1200,7 +1215,9 @@ pre.code.light {
 }
 .api-card-top {
   display: flex;
-  align-items: flex-start;
+  /* 名称、NEW、消耗徽章垂直居中对齐到同一条线。
+     原来用 flex-start，名称换行时徽章会顶在上方，三者中线对不齐。 */
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
