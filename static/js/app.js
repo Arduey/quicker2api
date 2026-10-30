@@ -167,7 +167,12 @@
     const form = ev.target;
     if (form.hasAttribute("data-no-busy")) return;
     if (ev.defaultPrevented) return;
-    const btn = form.querySelector('button[type="submit"]');
+    // 按钮不一定在表单内部：顶栏的保存按钮是用 form="id" 关联到表单的，
+    // 所以除了 form 内查找，还要用 document 找带 form 属性的按钮。
+    let btn = form.querySelector('button[type="submit"]');
+    if (!btn && form.id) {
+      btn = document.querySelector('button[type="submit"][form="' + form.id + '"]');
+    }
     if (btn && !btn.disabled) {
       const original = btn.innerHTML;
       btn.innerHTML = btn.getAttribute("data-busy-label") || "处理中…";

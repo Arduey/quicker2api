@@ -4,7 +4,20 @@
 {% block heading %}{{ '新建 API' if is_new else '编辑 API' }}{% endblock %}
 {% block subheading %}<p class="page-lead">左边是这个接口本身怎么调，右边是用户需要填哪些参数。</p>{% endblock %}
 {% block topbar_right %}
-<a class="btn sm" href="/admin/apis">← 返回列表</a>
+<div class="flex" style="gap:8px;align-items:center">
+  {% if not is_new %}
+  <span class="muted small hide-sm">最后更新：{{ (api.updated_at or 0) | ts }}</span>
+  {% endif %}
+  <a class="btn sm" href="/admin/apis">← 返回列表</a>
+  {% if not is_new %}
+  <a class="btn sm" href="/u/apis/{{ api.slug }}" target="_blank" rel="noopener"
+     title="以用户视角打开这个接口的访问页">访问接口 ↗</a>
+  {% endif %}
+  {#- 保存按钮放顶部右侧：表单很长，滚到底部才能保存不方便。
+      topbar 在 <form> 之外，必须用 form 属性把按钮关联回表单。 -#}
+  <button class="btn sm primary" type="submit" form="apiForm"
+          data-busy-label="保存中…">{{ '创建 API' if is_new else '保存修改' }}</button>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -179,14 +192,6 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <div class="btn-row mt-2">
-    <button class="btn primary" type="submit">{{ '创建 API' if is_new else '保存修改' }}</button>
-    <a class="btn" href="/admin/apis">取消</a>
-    {% if not is_new %}
-    <span class="ml-auto muted small">最后更新：{{ (api.updated_at or 0) | ts }}</span>
-    {% endif %}
   </div>
 </form>
 
