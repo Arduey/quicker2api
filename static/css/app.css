@@ -1513,13 +1513,27 @@ mark {
   overflow: hidden;
 }
 .api-card-stats {
-  display: flex;
-  gap: 18px;
+  /* 三等分占满整行：用 grid 而不是 flex，
+     flex 下每项宽度由内容决定（"731 ms" 比 "7" 宽），三列宽窄不一。 */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
   margin-top: auto;
   padding-top: 11px;
   border-top: 1px solid #f0f0f0;
 }
-.api-stat { display: flex; flex-direction: column; gap: 1px; }
+/* 有收藏按钮时右侧让出 26px，否则星星会压住「平均耗时」
+   （实测重叠 13px）。用 .has-fav 而不是 :has() 是为了兼容性；
+   游客没有收藏按钮时统计区正常铺满，不留白。 */
+.api-card-wrap.has-fav .api-card-stats { padding-right: 26px; }
+.api-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  align-items: center;
+  text-align: center;
+}
 .api-stat-num {
   font-size: 16px;
   font-weight: 700;

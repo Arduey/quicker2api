@@ -12,7 +12,9 @@
 
 {% macro api_card(api, viewer=None, favorites=None, keyword='') -%}
 {%- set fav = favorites and (api.id in favorites) -%}
-<div class="api-card-wrap">
+{#- 登录用户才渲染收藏按钮；has-fav 让统计区右侧让出位置，
+    避免五角星压住「平均耗时」。游客没有星星，统计区正常铺满。 -#}
+<div class="api-card-wrap{{ ' has-fav' if viewer }}">
   <a class="api-card {{ 'is-maint' if api.in_maintenance }}" href="/u/apis/{{ api.slug }}">
     <div class="api-card-top">
       <span class="api-card-name">
