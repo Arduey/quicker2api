@@ -66,13 +66,13 @@
     </a>
     <a href="/u/apis" class="{{ 'active' if request.path.startswith('/u/apis') }}">
       {{ icon('api') }}<span class="nav-text">接口目录</span>
-      {% if nav_badges and nav_badges.apis is not none %}
+      {% if nav_badges.get('apis') is not none %}
       <span class="nav-badge" title="可用接口 {{ nav_badges.apis }} 个">{{ nav_badges.apis | compact }}</span>
       {% endif %}
     </a>
     <a href="/u/logs" class="{{ 'active' if request.path.startswith('/u/logs') }}">
       {{ icon('logs') }}<span class="nav-text">调用明细</span>
-      {% if nav_badges and nav_badges.my_calls is not none %}
+      {% if nav_badges.get('my_calls') is not none %}
       <span class="nav-badge"
             title="累计调用 {{ nav_badges.my_calls }} 次">{{ nav_badges.my_calls | compact }}</span>
       {% endif %}
@@ -85,7 +85,7 @@
     </a>
     <a href="/u/feedback" class="{{ 'active' if request.path.startswith('/u/feedback') }}">
       {{ icon('chat') }}<span class="nav-text">我有话说</span>
-      {% if nav_badges and nav_badges.feedback %}
+      {% if nav_badges.get('feedback') %}
       <span class="nav-badge" title="{{ nav_badges.feedback }} 个话题有新回复">{{ nav_badges.feedback | compact }}</span>
       {% endif %}
     </a>
@@ -99,14 +99,14 @@
     </a>
     <a href="/admin/apis" class="{{ 'active' if request.path.startswith('/admin/apis') }}">
       {{ icon('server') }}<span class="nav-text">接口配置</span>
-      {% if nav_badges and nav_badges.apis_all is not none %}
+      {% if nav_badges.get('apis_all') is not none %}
       <span class="nav-badge"
             title="全部接口 {{ nav_badges.apis_all }} 个（含已下线）">{{ nav_badges.apis_all | compact }}</span>
       {% endif %}
     </a>
     <a href="/admin/users" class="{{ 'active' if request.path.startswith('/admin/users') }}">
       {{ icon('users') }}<span class="nav-text">用户账户</span>
-      {% if nav_badges and nav_badges.users is not none %}
+      {% if nav_badges.get('users') is not none %}
       <span class="nav-badge"
             title="注册用户总数（{{ nav_badges.users }}）">{{ nav_badges.users | compact }}</span>
       {% endif %}
@@ -116,7 +116,7 @@
     </a>
     <a href="/admin/logs" class="{{ 'active' if request.path.startswith('/admin/logs') }}">
       {{ icon('logs') }}<span class="nav-text">全站明细</span>
-      {% if nav_badges and nav_badges.total_calls is not none %}
+      {% if nav_badges.get('total_calls') is not none %}
       <span class="nav-badge"
             title="全站累计调用 {{ nav_badges.total_calls }} 次">{{ nav_badges.total_calls | compact }}</span>
       {% endif %}
