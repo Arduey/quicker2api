@@ -1993,6 +1993,10 @@ a.stat-card:hover {
   }
   .content { padding: 18px 16px 50px; }
   .topbar { padding: 13px 16px; }
+  /* 窄屏不显示引导语：顶栏是 sticky 的，引导语在这里会折成两行，
+     把吸顶栏从 52px 撑到 100px，占掉手机上宝贵的首屏高度。
+     引导语只是帮助理解，进去看内容一样能明白，优先保证空间。 */
+  .topbar .page-lead { display: none; }
   .menu-toggle { display: inline-flex !important; }
   .field-row, .field-row-head { grid-template-columns: 1fr 1fr; }
   .field-row .req-cell, .field-row .del { height: 32px; }

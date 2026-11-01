@@ -109,12 +109,42 @@
   /* ── 移动端侧栏 ── */
   const toggle = document.getElementById("menuToggle");
   if (toggle) {
-    toggle.addEventListener("click", () => {
-      const shell = document.getElementById("shell");
-      const sidebar = shell.querySelector(".sidebar");
-      if (sidebar) sidebar.classList.toggle("open");
-      shell.classList.toggle("menu-open");
-    });
+    const shell = document.getElementById("shell");
+    const sidebar = shell.querySelector(".sidebar");
+
+    if (!sidebar) {
+      // 游客主页没有侧栏（未登录不渲染 _sidebar.html）。
+      // 按钮留着只会盖上一层遮罩、却打不开任何东西，直接移除。
+      toggle.remove();
+    } else {
+      const closeMenu = () => {
+        sidebar.classList.remove("open");
+        shell.classList.remove("menu-open");
+      };
+      const openMenu = () => {
+        sidebar.classList.add("open");
+        shell.classList.add("menu-open");
+      };
+
+      toggle.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        if (shell.classList.contains("menu-open")) closeMenu();
+        else openMenu();
+      });
+
+      // 点遮罩（.shell.menu-open::after 属于 .shell 本身）关闭侧栏。
+      // 之前没有这个逻辑，遮罩又盖住按钮，导致开了就关不掉。
+      shell.addEventListener("click", function (ev) {
+        if (!shell.classList.contains("menu-open")) return;
+        if (ev.target.closest(".sidebar")) return;   // 点侧栏内部不关
+        if (ev.target.closest("#menuToggle")) return; // 按钮自己有上面的开关逻辑
+        closeMenu();
+      });
+
+      document.addEventListener("keydown", function (ev) {
+        if (ev.key === "Escape") closeMenu();
+      });
+    }
   }
 
   /* ── 密码可见切换：自动给每个密码框内嵌小眼睛 ── */
