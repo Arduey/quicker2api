@@ -100,11 +100,34 @@ p { margin: 0 0 .9em; line-height: 1.65; }
 
 /* 页面引导语 */
 .page-lead {
-  margin: 6px 0 0;
+  margin: 0;
   color: var(--ink-3);
   font-size: 13px;
   line-height: 1.6;
-  max-width: 62ch;
+  /* 引导语已移出 sticky 顶栏（见 base.html 的 .lead-band），
+     不再需要强制单行——折行不会再把吸顶栏撑高。
+     只限制一个阅读舒适的最大宽度，避免宽屏下一行拉到 1600px。 */
+  max-width: 76ch;
+}
+/* 引导语栏：与内容区同宽居中，位于顶栏之下、内容之上。
+   空的时候不占位（模板里已判断 self.subheading() 是否为空）。
+
+   注意不要在这里再写 calc((100% - 1600px)/2 ...)：padding 的百分比
+   是相对包含块算的，配合 max-width 会双重收窄，内容区反而比 .topbar
+   窄一截。跟 .content 一样用「限宽 + 定值 padding」最省心。 */
+.lead-band {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 14px 32px 0;
+}
+.lead-band.is-empty { display: none; }
+/* 顶栏中间的标题区：撑满剩余宽度。
+   不设 flex 时它是 flex: 0 1 auto，宽度由内容决定，
+   1280px 的视口下也只占 434px，引导语自然被挤到折行。 */
+.topbar-title {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }

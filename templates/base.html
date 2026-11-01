@@ -18,13 +18,20 @@
     {% block topbar %}
     <div class="topbar">
       <button class="btn ghost sm menu-toggle" id="menuToggle" type="button">☰</button>
-      <div>
+      <div class="topbar-title">
         <h1>{% block heading %}{% endblock %}</h1>
-        {% block subheading %}{% endblock %}
       </div>
       <div class="right">{% block topbar_right %}{% endblock %}</div>
     </div>
     {% endblock %}
+    {#- 引导语必须放在顶栏之外。
+        顶栏是 sticky 的，引导语一旦在里面，它的行数就直接决定顶栏高度：
+        文案一长就折行、顶栏变高，滚动时吸顶区域跟着跳动。
+        移出来之后顶栏高度只由 h1 决定，引导语也能按正常宽度排版。
+        用 self.subheading() 预先渲染一次判断是否为空，空则不占位。 -#}
+    <div class="lead-band{% if not self.subheading() | trim %} is-empty{% endif %}">
+      {% block subheading %}{% endblock %}
+    </div>
     <div class="content{% block content_class %}{% endblock %}">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
