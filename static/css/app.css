@@ -1087,16 +1087,15 @@ pre.code.light {
 .empty .big { font-size: 28px; margin-bottom: 12px; opacity: .3; }
 
 /* ═══════════ 认证页面 ═══════════ */
-/* 纯灰阶柔和渐变底，卡片浮起 */
+/* 原来在背景上叠了两层径向白雾做“卡片浮起”的错觉，这是装饰：
+   它不表达任何状态，只是把注意力从表单移开。
+   方向是仪器面板，底就该是平的，卡片靠边框和一道浅阴影就够。 */
 .auth-wrap {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 32px 16px;
-  background:
-    radial-gradient(900px 420px at 12% -8%, #ffffff 0%, transparent 62%),
-    radial-gradient(760px 380px at 96% 6%, #fafafa 0%, transparent 60%),
-    var(--bg);
+  background: var(--bg);
 }
 .auth-card {
   width: 100%;
