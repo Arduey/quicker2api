@@ -13,7 +13,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import config
 from .db import init_db
-from .util import compact_number, fmt_ago, fmt_ts, highlight, now_ts
+from .util import compact_number, fmt_ago, fmt_cost_ms, fmt_ts, highlight, now_ts
 
 PERMANENT_SESSION_LIFETIME = timedelta(days=7)
 
@@ -260,6 +260,9 @@ def _register_filters(app: Flask) -> None:
     app.add_template_filter(compact_number, "compact")
     # 搜索命中高亮：把关键词包成 <mark>（内部已做 HTML 转义）
     app.add_template_filter(highlight, "highlight")
+    # 耗时统一格式：423 → 423 ms，1250 → 1.2 s。
+    # 卡片和所有表格都用它，避免同一个概念在页面间出现两种写法。
+    app.add_template_filter(fmt_cost_ms, "ms")
 
 
 def _register_error_handlers(app: Flask) -> None:

@@ -83,7 +83,7 @@
     {%- for i in range(0, tick_n) -%}
     {%- set gy = pad_t + (inner_h * i / ((tick_n - 1) if tick_n > 1 else 1)) -%}
     <line x1="{{ pad_l }}" y1="{{ gy }}" x2="{{ w - pad_r }}" y2="{{ gy }}"
-          stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3 4"/>
+          stroke="var(--border)" stroke-width="1" stroke-dasharray="3 4"/>
     <text x="{{ pad_l - 8 }}" y="{{ gy + 3.5 }}" text-anchor="end"
           class="chart-axis">{{ ticks.vals[i] }}</text>
     {%- endfor %}
@@ -110,7 +110,7 @@
       <g class="chart-tip"
          transform="translate({{ '%.1f' % (pt.x + pt.tip_dx) }}, {{ '%.1f' % (pt.y + pt.tip_dy) }})">
         <rect x="-56" y="-64" width="112" height="50" rx="9"
-              fill="#fff" stroke="#e5e7eb" stroke-width="1" class="chart-tip-box"/>
+              fill="#fff" stroke="var(--border)" stroke-width="1" class="chart-tip-box"/>
         <circle cx="-44" cy="-50" r="3" fill="#000000"/>
         <text x="-37" y="-46.5" class="chart-tip-label">{{ pt.p.label }}</text>
         <text x="-44" y="-32" class="chart-tip-value">{{ pt.p.total }} {{ unit }}</text>

@@ -114,16 +114,18 @@
               {% if api.call_count %}{{ (api.success_count * 100 / api.call_count) | round(1) }}%{% else %}-{% endif %}
             </td>
             <td>
-              {% if api.status == 1 %}
-              <span class="badge ok">在线</span>
-              {% elif api.status == 2 %}
-              <span class="badge warn">维护中</span>
-              {% if api.maintenance_note %}
+              <span class="status-cell">
+                {% if api.status == 1 %}
+                <span class="status-dot online" title="在线"></span>在线
+                {% elif api.status == 2 %}
+                <span class="status-dot maint" title="维护中"></span>维护中
+                {% else %}
+                <span class="status-dot offline" title="已下线"></span>已下线
+                {% endif %}
+              </span>
+              {% if api.status == 2 and api.maintenance_note %}
               <div class="muted small truncate" style="max-width:130px"
                    title="{{ api.maintenance_note }}">{{ api.maintenance_note }}</div>
-              {% endif %}
-              {% else %}
-              <span class="badge">已下线</span>
               {% endif %}
             </td>
             <td class="nowrap">

@@ -50,7 +50,7 @@
             {% endif %}
           </td>
           <td class="num">{{ log.cost_points }}</td>
-          <td class="num hide-sm">{{ log.time_cost_ms }} ms</td>
+          <td class="num hide-sm">{{ log.time_cost_ms | ms }}</td>
           <td class="hide-sm muted small mono">{{ log.ip or '-' }}</td>
           <td class="nowrap muted small">{{ log.created_at | ts }}</td>
         </tr>

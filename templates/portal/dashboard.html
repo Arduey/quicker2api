@@ -130,7 +130,7 @@
             {% if log.refunded %}<span class="badge warn">已退</span>{% endif %}
           </td>
           <td class="num">{{ log.cost_points }}</td>
-          <td class="num hide-sm">{{ log.time_cost_ms }} ms</td>
+          <td class="num hide-sm">{{ log.time_cost_ms | ms }}</td>
           <td class="nowrap muted small">{{ log.created_at | ago }}</td>
         </tr>
         {% endfor %}

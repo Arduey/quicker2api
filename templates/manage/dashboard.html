@@ -68,7 +68,7 @@
               <span class="badge {{ 'ok' if log.is_success else 'fail' }}">{{ '成功' if log.is_success else '失败' }}</span>
             </td>
             <td class="hide-sm truncate" style="max-width:150px">{{ log.user_email }}</td>
-            <td class="num">{{ log.time_cost_ms }} ms</td>
+            <td class="num">{{ log.time_cost_ms | ms }}</td>
             <td class="num">{{ log.cost_points }}</td>
             <td class="nowrap muted small">{{ log.created_at | ago }}</td>
           </tr>
@@ -102,7 +102,7 @@
           <tr>
             <td>
               <a href="/admin/apis/{{ api.id }}">{{ api.name }}</a>
-              {% if not api.status %}<span class="badge">已下线</span>{% endif %}
+              {% if not api.status %}<span class="status-cell"><span class="status-dot offline"></span>已下线</span>{% endif %}
               <div class="muted small mono">{{ api.slug }}</div>
             </td>
             <td class="num">{{ api.call_count }}</td>

@@ -14,7 +14,7 @@
         <span class="badge {{ 'ok' if log.is_success else 'fail' }}">{{ '成功' if log.is_success else '失败' }}</span>
         {% if log.refunded %}<span class="badge warn">积分已退</span>{% endif %}
       </div>
-      <div><div class="muted small">消耗 / 耗时</div><b>{{ log.cost_points }} 积分 · {{ log.time_cost_ms }} ms</b></div>
+      <div><div class="muted small">消耗 / 耗时</div><b>{{ log.cost_points }} 积分 · {{ log.time_cost_ms | ms }}</b></div>
       <div><div class="muted small">时间</div><b class="small">{{ log.created_at | ts }}</b></div>
     </div>
     {% if log.error_message %}
