@@ -11,35 +11,100 @@
 {% endblock %}
 
 {% block content %}
+
+{#- 分类导航 + 筛选 + 搜索。
+    分类和筛选都是链接，服务端渲染，无 JS 也能用；
+    搜索是表单，前后端都能按同一套规则过滤。 -#}
+<div class="fb-toolbar">
+  <nav class="fb-cats">
+    <a class="fb-cat {{ 'on' if not active_category }}"
+       href="/u/feedback?scope={{ scope }}{% if keyword %}&q={{ keyword | urlencode }}{% endif %}">
+      全部
+      <span class="fb-cat-num">{{ counts.values() | sum }}</span>
+    </a>
+    {% for key, label in categories %}
+    <a class="fb-cat {{ 'on' if active_category == key }}"
+       href="/u/feedback?category={{ key }}&scope={{ scope }}{% if keyword %}&q={{ keyword | urlencode }}{% endif %}">
+      {{ label }}
+      <span class="fb-cat-num">{{ counts.get(key, 0) }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  <form class="fb-filter" method="get" action="/u/feedback">
+    {% if active_category %}<input type="hidden" name="category" value="{{ active_category }}">{% endif %}
+    <div class="fb-scopes">
+      {% for key, label in scopes %}
+      <a class="fb-scope {{ 'on' if scope == key }}"
+         href="/u/feedback?scope={{ key }}{% if active_category %}&category={{ active_category }}{% endif %}{% if keyword %}&q={{ keyword | urlencode }}{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+    <div class="fb-search">
+      <input type="search" name="q" value="{{ keyword }}" placeholder="搜索标题或正文">
+      {% if scope != 'all' %}<input type="hidden" name="scope" value="{{ scope }}">{% endif %}
+      <button class="btn sm" type="submit">搜索</button>
+      {% if keyword %}
+      <a class="btn sm ghost"
+         href="/u/feedback?scope={{ scope }}{% if active_category %}&category={{ active_category }}{% endif %}">清除</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
 {% if topics %}
 <div class="card">
   <div class="head">
-    <h2>全部话题</h2>
+    <h2>{% if keyword %}搜索「{{ keyword }}」{% elif active_category %}{{ topics[0].category_label }}{% else %}全部话题{% endif %}</h2>
     <div class="actions">
-      <span class="muted small">{{ topics | length }} 个话题{% if unread %} · <b>{{ unread }} 个未读</b>{% endif %}</span>
+      <span class="muted small">{{ total }} 个话题{% if unread %} · <b>{{ unread }} 个未读</b>{% endif %}</span>
     </div>
   </div>
   <div class="body flush">
     <div class="topic-list">
       {% for t in topics %}
-      <a class="topic-item{{ ' is-unread' if t.unread }}" href="/u/feedback/{{ t.id }}">
+      {#- 三列网格：左侧标题与摘要（可伸缩），中间分类，右侧统计（固定宽）。
+          统计块宽度写死，标题再长也不会把数字挤走，扫视时每行数字都在同一条竖线上。 -#}
+      <a class="topic-item{{ ' is-unread' if t.unread }}{{ ' is-pinned' if t.is_pinned }}"
+         href="/u/feedback/{{ t.id }}">
         <div class="topic-main">
           <div class="topic-title">
             {% if t.unread %}<span class="unread-dot" aria-label="未读"></span>{% endif %}
-            <span class="topic-title-text">{{ t.title }}</span>
+            {% if t.is_pinned %}<span class="topic-flag">置顶</span>{% endif %}
+            {% if t.state %}<span class="topic-flag done">已完成</span>{% endif %}
+            <span class="topic-title-text">{{ t.title_html }}</span>
           </div>
           <div class="topic-meta">
+            {% if t.is_official %}
+            <span class="official-tag">官方</span>
+            {% endif %}
             <span class="topic-author">{{ t.user_nickname or '匿名' }}</span>
-            {% if t.is_mine %}<span class="badge">我发的</span>{% endif %}
-            <span class="muted">·</span>
-            <span class="muted">{{ t.updated_at | ago }}</span>
-            {% if t.reply_count %}
-            <span class="muted">·</span>
-            <span class="muted">{{ t.reply_count }} 条回复</span>
+            {% if t.is_mine %}<span class="muted">我发的</span>{% endif %}
+            {% if t.body_html %}
+            <span class="topic-snippet">{{ t.body_html }}</span>
             {% endif %}
           </div>
         </div>
-        <span class="topic-arrow" aria-hidden="true">›</span>
+
+        <span class="topic-cat">{{ t.category_label }}</span>
+
+        <div class="topic-stats">
+          <span class="topic-stat" title="互动（回复）数">
+            <span class="topic-stat-num">{{ t.reply_count or 0 }}</span>
+            <span class="topic-stat-label">互动</span>
+          </span>
+          <span class="topic-stat" title="查看数">
+            <span class="topic-stat-num">{{ t.view_count or 0 }}</span>
+            <span class="topic-stat-label">查看</span>
+          </span>
+          <span class="topic-stat" title="点赞数">
+            <span class="topic-stat-num">{{ t.like_count or 0 }}</span>
+            <span class="topic-stat-label">点赞</span>
+          </span>
+          <span class="topic-stat wide" title="最近回复时间">
+            <span class="topic-stat-time">{{ t.last_active | ago }}</span>
+            <span class="topic-stat-label">最近回复</span>
+          </span>
+        </div>
       </a>
       {% endfor %}
     </div>
@@ -50,9 +115,15 @@
   <div class="body">
     <div class="empty">
       <div class="big">✦</div>
+      {% if keyword %}
+      没有找到含「{{ keyword }}」的话题
+      {% elif active_category %}
+      这个分类下还没有话题
+      {% else %}
       还没有人开口
+      {% endif %}
       <div class="mt-2">
-        <a class="btn primary" href="/u/feedback/new">做第一个提需求的人</a>
+        <a class="btn primary" href="/u/feedback/new">发起一个话题</a>
       </div>
     </div>
   </div>

@@ -2098,10 +2098,14 @@ a.stat-card:hover {
 
 /* ── 话题列表 ── */
 .topic-list { display: flex; flex-direction: column; }
+/* 三列栅格：标题区（可伸缩）/ 分类（定宽）/ 统计（定宽）。
+   原来是 flex，统计块的位置会随标题长度滑动，滚列表时数字忽左忽右。
+   写死后两列宽度后，每行的分类和四个数字都在同一条竖线上。 */
 .topic-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 232px;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
   color: inherit;
@@ -2110,7 +2114,9 @@ a.stat-card:hover {
 }
 .topic-item:last-child { border-bottom: 0; }
 .topic-item:hover { background: var(--surface-2); }
-.topic-main { flex: 1; min-width: 0; }
+/* 置顶行左侧加一道墨线，扫视时能立刻分出「被顶上来的」 */
+.topic-item.is-pinned { box-shadow: inset 3px 0 0 var(--ink); }
+.topic-main { min-width: 0; }
 .topic-title {
   display: flex;
   align-items: center;
@@ -2141,16 +2147,291 @@ a.stat-card:hover {
   gap: 8px;
   font-size: 12px;
   color: var(--ink-3);
+  min-width: 0;
+}
+.topic-author { color: var(--ink-2); font-weight: 500; flex: 0 0 auto; }
+/* 正文摘要：占满剩余宽度、单行省略，不换行 */
+.topic-snippet {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-3);
+}
+.topic-snippet mark { background: #fff2a8; color: var(--ink); padding: 0 1px; }
+
+/* 分类列：定宽，保证每行分类名左端对齐 */
+.topic-cat {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 统计列：四个固定槽位。用 grid 等分而不是 flex，
+   否则「1.2 s」和「刚刚」这种不同宽度的内容会把相邻项挤动。 */
+.topic-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.topic-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: right;
+}
+.topic-stat-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.topic-stat-time {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.topic-stat-label {
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* 置顶 / 已完成 标记：小号方角标签，不用药丸，避免和徽章混为一谈 */
+.topic-flag {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--brand);
+  color: #fff;
+}
+.topic-flag.done {
+  background: var(--border);
+  color: var(--ink-2);
+}
+
+/* 官方标：管理员发的帖子与回复都带。用描边而不是实底，
+   比置顶标签轻一档，不抢标题注意力。 */
+.official-tag {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ── 列表页工具栏：分类导航 + 维度筛选 + 搜索 ── */
+.fb-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+/* 分类：横向药丸，可换行。5 个分类一屏放得下，比下拉框少一次点击 */
+.fb-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fb-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: background var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+.fb-cat:hover { background: var(--surface-2); color: var(--ink); }
+.fb-cat.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  font-weight: 600;
+}
+.fb-cat-num {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.fb-cat.on .fb-cat-num { color: rgba(255, 255, 255, .8); }
+
+/* 筛选行：左侧三档维度切换（分段控件），右侧搜索框 */
+.fb-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
 }
-.topic-author { color: var(--ink-2); font-weight: 500; }
-.topic-arrow {
+.fb-scopes {
+  display: inline-flex;
+  gap: 2px;
+  background: #f0f0f0;
+  padding: 4px;
+  border-radius: var(--radius-pill);
   flex: 0 0 auto;
-  color: var(--ink-3);
-  font-size: 17px;
-  line-height: 1;
 }
-.topic-item:hover .topic-arrow { color: var(--ink); }
+.fb-scope {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  color: var(--ink-3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.fb-scope:hover { color: var(--ink-2); }
+.fb-scope.on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+.fb-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.fb-search input[type=search] { flex: 1 1 auto; min-width: 0; }
+
+/* ── 发帖页：分类单选组 ── */
+.cat-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cat-opt { position: relative; display: inline-flex; }
+/* 原生 radio 隐藏但保留可访问性与键盘操作，样式交给下面的 face */
+.cat-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.cat-opt-face {
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  transition: background var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+.cat-opt:hover .cat-opt-face { background: var(--surface-2); }
+.cat-opt input:checked + .cat-opt-face {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  font-weight: 600;
+}
+.cat-opt input:focus-visible + .cat-opt-face {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ── 详情页：点赞与管理员操作条 ── */
+.topic-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.topic-admin {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+/* 点赞按钮：未赞为描边，已赞为实底黑。用填充而不是变色，
+   黑白体系里颜色传达不了「已选中」。 */
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+.like-btn:hover { background: var(--surface-2); color: var(--ink); }
+.like-btn.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.topic-head-tags {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* —— 窄屏：统计列收成两行，分类挪到标题下方 —— */
+@media (max-width: 860px) {
+  .topic-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main main"
+      "cat  stats";
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .topic-main { grid-area: main; }
+  .topic-cat { grid-area: cat; }
+  .topic-stats {
+    grid-area: stats;
+    grid-template-columns: repeat(4, auto);
+    gap: 12px;
+  }
+  .topic-stat { text-align: right; }
+  .topic-admin { margin-left: 0; flex: 1 1 100%; }
+}
+@media (max-width: 620px) {
+  .fb-cat, .fb-scope { font-size: 12px; }
+  .topic-stats { grid-template-columns: repeat(2, auto); gap: 8px 16px; }
+}
 
 /* ── 话题正文 ── */
 .topic-head {

@@ -339,6 +339,30 @@ def migrate_admin_into_users(target: Database | None = None) -> list[str]:
                    "NOT NULL DEFAULT '' AFTER response_example")
         notes.append("已给 apis 表加上 category 字段")
 
+    # 8. 「我有话说」升级：分类 / 置顶 / 已完成 / 查看数 / 点赞数
+    if table_exists("topics"):
+        topic_cols = [
+            ("category", "VARCHAR(32) NOT NULL DEFAULT '' AFTER body"),
+            ("is_pinned", "TINYINT NOT NULL DEFAULT 0 AFTER category"),
+            ("state", "TINYINT NOT NULL DEFAULT 0 AFTER is_pinned"),
+            ("view_count", "INT NOT NULL DEFAULT 0 AFTER state"),
+            ("like_count", "INT NOT NULL DEFAULT 0 AFTER view_count"),
+        ]
+        added = []
+        for col, ddl in topic_cols:
+            if not has_column("topics", col):
+                db.execute("ALTER TABLE topics ADD COLUMN %s %s" % (col, ddl))
+                added.append(col)
+        if added:
+            notes.append("已给 topics 表加上 %s 字段" % " / ".join(added))
+        # 索引单独建，已存在时忽略 1061
+        for ddl in ("ALTER TABLE topics ADD KEY idx_topic_category (category)",
+                    "ALTER TABLE topics ADD KEY idx_topic_pinned (is_pinned, updated_at)"):
+            try:
+                db.execute(ddl)
+            except Exception:  # noqa: BLE001 索引已存在属正常
+                pass
+
     return notes
 
 

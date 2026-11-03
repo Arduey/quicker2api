@@ -3,29 +3,73 @@
 {% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
 {% block heading %}{{ topic.title }}{% endblock %}
 {% block subheading %}
-<p class="page-lead">{{ topic.user_nickname or '匿名' }} 发起于 {{ topic.created_at | ago }}{% if topic.reply_count %} · {{ topic.reply_count }} 条回复{% endif %}</p>
+<p class="page-lead">{{ topic.user_nickname or '匿名' }} 发起于 {{ topic.created_at | ago }}{% if topic.reply_count %} · {{ topic.reply_count }} 条回复{% endif %} · {{ topic.view_count }} 次查看</p>
 {% endblock %}
 
 {% block topbar_right %}
-<a class="btn sm" href="/u/feedback">← 返回列表</a>
+<div class="flex" style="gap:8px;align-items:center">
+  <a class="btn sm" href="/u/feedback">← 返回列表</a>
+</div>
 {% endblock %}
 
 {% block content %}
 
 {#- 话题正文：纯文字，不解析 Markdown 也不允许 HTML（模板转义） -#}
-<div class="card">
+<div class="card" id="topic-body">
   <div class="body">
     <div class="topic-head">
       <span class="avatar sm">{{ (topic.user_nickname or 'U')[0] | upper }}</span>
       <div class="topic-head-text">
         <div class="topic-head-name">
+          {% if topic.is_official %}<span class="official-tag">官方</span>{% endif %}
           {{ topic.user_nickname or '匿名' }}
           {% if is_mine %}<span class="badge">我发的</span>{% endif %}
         </div>
         <div class="muted small">{{ topic.created_at | ts }}</div>
       </div>
+      <div class="topic-head-tags">
+        <span class="topic-cat">{{ topic.category_label }}</span>
+        {% if topic.is_pinned %}<span class="topic-flag">置顶</span>{% endif %}
+        {% if topic.state %}<span class="topic-flag done">已完成</span>{% endif %}
+      </div>
     </div>
     <div class="topic-body">{{ topic.body }}</div>
+
+    {#- 点赞 + 管理员操作条 -#}
+    <div class="topic-actions">
+      <form method="post" action="/u/feedback/{{ topic.id }}/like" style="margin:0">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="like-btn{{ ' on' if liked }}" type="submit"
+                title="{{ '取消点赞' if liked else '点赞' }}">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+               fill="{{ 'currentColor' if liked else 'none' }}"
+               stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+               stroke-linejoin="round">
+            <path d="M7 22V11l5-9a2.5 2.5 0 0 1 2.5 2.5V9h5a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 18.1 21H7z"/>
+            <path d="M7 11H4a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3"/>
+          </svg>
+          <span>{{ topic.like_count }}</span>
+        </button>
+      </form>
+
+      {% if is_admin %}
+      <div class="topic-admin">
+        <form method="post" action="/u/feedback/{{ topic.id }}/pin" style="margin:0">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button class="btn sm" type="submit">{{ '取消置顶' if topic.is_pinned else '置顶' }}</button>
+        </form>
+        <form method="post" action="/u/feedback/{{ topic.id }}/state" style="margin:0">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button class="btn sm" type="submit">{{ '改回进行中' if topic.state else '标记已完成' }}</button>
+        </form>
+        <form method="post" action="/u/feedback/{{ topic.id }}/delete" style="margin:0"
+              data-confirm="删除后这个话题和它的全部回复都不再可见，确定删除？">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button class="btn sm danger" type="submit">删除</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
   </div>
 </div>
 
@@ -45,6 +89,7 @@
         <span class="avatar sm">{{ (r.user_nickname or 'U')[0] | upper }}</span>
         <div class="reply-main">
           <div class="reply-head">
+            {% if r.is_official %}<span class="official-tag">官方</span>{% endif %}
             <span class="reply-name">{{ r.user_nickname or '匿名' }}</span>
             {% if r.is_mine %}<span class="badge">我</span>{% endif %}
             {% if r.user_id == topic.user_id %}<span class="badge info">楼主</span>{% endif %}

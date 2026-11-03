@@ -20,6 +20,23 @@
     <form method="post">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
 
+      {#- 分类：必选。用 radio 而不是下拉框——
+          只有 5 个选项，全部摊开比点开下拉再选少一次操作，
+          也能让人一眼看到有哪些分类。 -#}
+      <div class="field">
+        <label>分类 <span class="req">*</span></label>
+        <div class="cat-picker">
+          {% for key, label in categories %}
+          <label class="cat-opt">
+            <input type="radio" name="category" value="{{ key }}"
+                   {{ 'checked' if category == key }} required>
+            <span class="cat-opt-face">{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <div class="help">选一个最接近的，方便别人按分类找到你的话题</div>
+      </div>
+
       <div class="field">
         <label>标题 <span class="req">*</span></label>
         <input type="text" name="title" value="{{ title }}" required

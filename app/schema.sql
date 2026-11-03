@@ -134,19 +134,32 @@ CREATE TABLE IF NOT EXISTS rate_counters (
 -- ═══════════ 「我有话说」：需求 / 反馈 ═══════════
 -- 话题：用户提的需求或问题。纯文字，标题 + 正文。
 -- reply_count / last_reply_at 冗余存一份，列表页不必每条都去 COUNT。
+--
+-- category   分类，创建时必选（需求收集 / 问题反馈 / 优化建议 / 使用问题 / 随便聊聊）
+-- is_pinned  管理员置顶，排序时优先，不受 updated_at 影响
+-- state      0 = 进行中，1 = 已完成（管理员标记，列表上打勾）
+-- view_count 打开详情页的次数，用于列表展示「查看」
+-- like_count 点赞数；明细在 topic_likes，这里只存计数避免列表页 JOIN
 CREATE TABLE IF NOT EXISTS topics (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id INT UNSIGNED NOT NULL,
   user_nickname VARCHAR(64) NOT NULL DEFAULT '',
   title VARCHAR(120) NOT NULL,
   body TEXT,
+  category VARCHAR(32) NOT NULL DEFAULT '',
+  is_pinned TINYINT NOT NULL DEFAULT 0,
+  state TINYINT NOT NULL DEFAULT 0,
+  view_count INT NOT NULL DEFAULT 0,
+  like_count INT NOT NULL DEFAULT 0,
   reply_count INT NOT NULL DEFAULT 0,
   last_reply_at INT NOT NULL DEFAULT 0,
   created_at INT NOT NULL DEFAULT 0,
   updated_at INT NOT NULL DEFAULT 0,
   PRIMARY KEY (id),
   KEY idx_topic_updated (updated_at),
-  KEY idx_topic_user (user_id, id)
+  KEY idx_topic_user (user_id, id),
+  KEY idx_topic_category (category),
+  KEY idx_topic_pinned (is_pinned, updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 话题下的回复。就像评论区，谁都能回，包括话题作者本人。
@@ -160,6 +173,16 @@ CREATE TABLE IF NOT EXISTS topic_replies (
   PRIMARY KEY (id),
   KEY idx_reply_topic (topic_id, id),
   KEY idx_reply_user (user_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 点赞：一人一话题只能点一次。明细存这里，topics.like_count 只存计数，
+-- 列表页靠计数字段就能显示，不必每行 JOIN 一次聚合。
+CREATE TABLE IF NOT EXISTS topic_likes (
+  user_id INT UNSIGNED NOT NULL,
+  topic_id INT UNSIGNED NOT NULL,
+  created_at INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, topic_id),
+  KEY idx_like_topic (topic_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 阅读状态：某人最后一次打开某个话题的时刻。
