@@ -201,3 +201,30 @@ CREATE TABLE IF NOT EXISTS topic_reads (
   PRIMARY KEY (user_id, topic_id),
   KEY idx_read_topic (topic_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ═══════════ 公告：管理员发布，全体用户可见 ═══════════
+-- is_active 控制上下线：下线后用户立刻看不到，但记录保留可再上线。
+-- level 只有两档：普通 / 重要。重要公告用更重的边框区分，
+-- 不做彩色警示条——黑白体系里颜色扛不住「重要程度」。
+CREATE TABLE IF NOT EXISTS announcements (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(120) NOT NULL DEFAULT '',
+  body TEXT,
+  level TINYINT NOT NULL DEFAULT 0,
+  is_active TINYINT NOT NULL DEFAULT 1,
+  created_by INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at INT NOT NULL DEFAULT 0,
+  updated_at INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  KEY idx_ann_active (is_active, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 已读：用户点「知道了」后记一条。同一公告对同一人只记一次。
+-- 没记录的公告会在页面顶部横幅提示，记录后不再打扰。
+CREATE TABLE IF NOT EXISTS announcement_reads (
+  user_id INT UNSIGNED NOT NULL,
+  announcement_id INT UNSIGNED NOT NULL,
+  read_at INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, announcement_id),
+  KEY idx_annread_ann (announcement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

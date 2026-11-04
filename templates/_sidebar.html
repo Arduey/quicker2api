@@ -124,6 +124,9 @@
     <a href="/admin/settings" class="{{ 'active' if request.path.startswith('/admin/settings') }}">
       {{ icon('sliders') }}<span class="nav-text">平台设置</span>
     </a>
+    <a href="/admin/announcements" class="{{ 'active' if request.path.startswith('/admin/announcements') }}">
+      {{ icon('chat') }}<span class="nav-text">发布公告</span>
+    </a>
   </nav>
   {% endif %}
 

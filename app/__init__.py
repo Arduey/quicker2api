@@ -231,6 +231,28 @@ def _register_hooks(app: Flask) -> None:
                     badges["feedback"] = 0
             return badges
 
+        def _announcement():
+            """顶部横幅要显示的公告：最新一条未读。
+
+            只取一条——多条一起铺会占满页面顶部，用户反而全部忽略。
+            关闭后下一条才顶上来，逐条消化。
+            """
+            if viewer is None:
+                return None
+            uid = viewer.get("id")
+            if not uid:
+                return None
+            from .db import get_db
+            from .announce import unread_for, unread_total
+
+            db = get_db()
+            if db is None:
+                return None
+            row = unread_for(db, int(uid))
+            if row is not None:
+                row["unread_total"] = unread_total(db, int(uid))
+            return row
+
         return {
             "csrf_token": ensure_csrf,
             "site_name": config.site_name(),
@@ -241,6 +263,8 @@ def _register_hooks(app: Flask) -> None:
             "is_admin": viewer_is_admin(viewer),
             "is_admin_view": viewer_is_admin(viewer),
             "nav_badges": _safe(_nav_badges, {}),
+            # 未读公告（没有则 None）。base.html 据此渲染顶部横幅。
+            "current_announcement": _safe(_announcement, None),
             "now_ts": now_ts,
             "settings": _safe(settings_all, {}),
         }

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}发布公告 · {{ site_name }}{% endblock %}
+{% block sidebar %}{% include "_sidebar.html" %}{% endblock %}
+{% block heading %}发布公告{% endblock %}
+{% block subheading %}
+<p class="page-lead">公告发布后会出现在所有用户的页面顶部，点「知道了」后不再提示。下线可以暂停，不必删除。</p>
+{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <div class="head"><h2>新建公告</h2></div>
+  <div class="body">
+    <form method="post" action="/admin/announcements">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+      <div class="field">
+        <label>标题 <span class="req">*</span></label>
+        <input type="text" name="title" required maxlength="120"
+               placeholder="一句话说清要通知什么">
+      </div>
+
+      <div class="field">
+        <label>重要程度</label>
+        <div class="cat-picker">
+          <label class="cat-opt">
+            <input type="radio" name="level" value="0" checked>
+            <span class="cat-opt-face">普通</span>
+          </label>
+          <label class="cat-opt">
+            <input type="radio" name="level" value="1">
+            <span class="cat-opt-face">重要</span>
+          </label>
+        </div>
+        <div class="help">重要公告在用户页面顶部用更重的左边线和加粗标题突出</div>
+      </div>
+
+      <div class="field">
+        <label>内容 <span class="req">*</span></label>
+        <textarea name="body" rows="5" required maxlength="5000"
+                  placeholder="具体说明改了什么、影响哪些使用方式、需要用户做什么"></textarea>
+        <div class="help">纯文字，保留换行，最多 5000 字</div>
+      </div>
+
+      <div class="btn-row end">
+        <button class="btn primary" type="submit" data-busy-label="发布中…">发布公告</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="head">
+    <h2>已发布</h2>
+    <div class="actions">
+      <span class="muted small">共 {{ items | length }} 条 · 启用中的账号 {{ total_users }} 个</span>
+    </div>
+  </div>
+  <div class="body {{ 'flush' if items }}">
+    {% if items %}
+    <table>
+      <thead>
+        <tr>
+          <th>公告</th>
+          <th>程度</th>
+          <th>状态</th>
+          <th class="num">已读</th>
+          <th class="hide-sm">发布时间</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in items %}
+        <tr>
+          <td>
+            <div class="announce-cell-title">{{ a.title }}</div>
+            <div class="muted small truncate" style="max-width:420px">{{ a.body }}</div>
+          </td>
+          <td>
+            {% if a.is_important %}<span class="topic-flag">重要</span>
+            {% else %}<span class="muted small">普通</span>{% endif %}
+          </td>
+          <td>
+            {% if a.is_active %}
+            <span class="status-cell"><span class="status-dot online"></span>上线中</span>
+            {% else %}
+            <span class="status-cell"><span class="status-dot offline"></span>已下线</span>
+            {% endif %}
+          </td>
+          <td class="num">
+            {{ a.read_count }}
+            <span class="muted small">/ {{ total_users }}</span>
+            <div class="muted small">{{ a.read_percent }}%</div>
+          </td>
+          <td class="hide-sm muted small nowrap">{{ a.created_at | ts }}</td>
+          <td class="nowrap">
+            <form method="post" action="/admin/announcements/{{ a.id }}/toggle"
+                  style="display:inline;margin:0">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="btn sm" type="submit">{{ '下线' if a.is_active else '重新上线' }}</button>
+            </form>
+            <form method="post" action="/admin/announcements/{{ a.id }}/delete"
+                  style="display:inline;margin:0"
+                  data-confirm="删除后已读记录也会一并清除，重新发布时所有人会再被提示一次。确定删除？">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="btn sm danger" type="submit">删除</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+      <div class="big">✦</div>
+      还没有发过公告
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

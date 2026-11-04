@@ -914,3 +914,87 @@ def card_export():
     return Response(body, mimetype="text/plain",
                     headers={"Content-Disposition": "attachment; filename=%s" % filename})
 
+
+
+# ═════════════════════ 公告 ═════════════════════
+@bp.get("/announcements")
+@guard
+def announcement_list():
+    """公告管理：列全部（含下线），带已读人数。"""
+    from ..announce import level_label, read_count
+
+    db = get_db()
+    rows = db.query(
+        "SELECT id, title, body, level, is_active, created_by, created_at, updated_at "
+        "FROM announcements ORDER BY created_at DESC, id DESC")
+    total_users = int(db.scalar(
+        "SELECT COUNT(*) AS c FROM users WHERE status = 1") or 0)
+    for row in rows:
+        row["level_label"] = level_label(row.get("level"))
+        row["is_important"] = int(row.get("level") or 0) == 1
+        row["read_count"] = read_count(db, int(row["id"]))
+        # 已读率：分母是启用中的账号数，一个人都没读时给 0 而不是除零
+        row["read_percent"] = (round(row["read_count"] * 100.0 / total_users)
+                               if total_users else 0)
+
+    return render_template("manage/announcements.html", items=rows,
+                           total_users=total_users)
+
+
+@bp.post("/announcements")
+@guard
+def announcement_create():
+    from ..announce import normalize_level
+
+    db = get_db()
+    title = text(request.form.get("title"), 120)
+    body = text(request.form.get("body"), 5000)
+    level = normalize_level(request.form.get("level"))
+
+    if len(title) < 2:
+        flash("公告标题至少 2 个字", "error")
+        return redirect(url_for("manage.announcement_list"))
+    if not body:
+        flash("公告内容不能为空", "error")
+        return redirect(url_for("manage.announcement_list"))
+
+    ts = now_ts()
+    viewer = security.current_viewer()
+    db.insert(
+        "INSERT INTO announcements (title, body, level, is_active, created_by, "
+        "created_at, updated_at) VALUES (%s, %s, %s, 1, %s, %s, %s)",
+        (title, body, level, int(viewer["id"]) if viewer else 0, ts, ts))
+    flash("公告已发布，所有用户下次打开页面就能看到", "success")
+    return redirect(url_for("manage.announcement_list"))
+
+
+@bp.post("/announcements/<int:ann_id>/toggle")
+@guard
+def announcement_toggle(ann_id: int):
+    """上线 / 下线。下线后用户立刻看不到，记录保留可再上线。"""
+    db = get_db()
+    row = db.query_one("SELECT id, is_active FROM announcements WHERE id = %s", (ann_id,))
+    if row is None:
+        flash("公告不存在", "error")
+        return redirect(url_for("manage.announcement_list"))
+
+    target = 0 if int(row.get("is_active") or 0) else 1
+    db.execute("UPDATE announcements SET is_active = %s, updated_at = %s WHERE id = %s",
+               (target, now_ts(), ann_id))
+    flash("公告已上线" if target else "公告已下线", "success")
+    return redirect(url_for("manage.announcement_list"))
+
+
+@bp.post("/announcements/<int:ann_id>/delete")
+@guard
+def announcement_delete(ann_id: int):
+    """彻底删除，连带清掉已读记录。
+
+    想「暂停」用下线，不要删——删除后已读记录一起没了，
+    重新发布时所有人会被再打扰一次。
+    """
+    db = get_db()
+    db.execute("DELETE FROM announcement_reads WHERE announcement_id = %s", (ann_id,))
+    db.execute("DELETE FROM announcements WHERE id = %s", (ann_id,))
+    flash("公告已删除", "success")
+    return redirect(url_for("manage.announcement_list"))

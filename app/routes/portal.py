@@ -466,3 +466,23 @@ def reset_key():
                (security.new_api_key(), viewer["id"]))
     flash("API Key 已重置，旧 Key 立即失效", "success")
     return redirect(url_for("portal.profile"))
+
+
+# ═════════════════════ 公告：用户标记已读 ═════════════════════
+@bp.post("/u/announcement/<int:ann_id>/read")
+@guard
+def announcement_read(ann_id: int):
+    """关闭公告横幅。记录后同一公告不再对该用户提示。
+
+    用表单 POST 而不是 JS 直连：没有 JS 也能正常关闭，
+    而且带 CSRF 校验，不会被第三方页面悄悄替用户点掉。
+    """
+    from ..announce import mark_read
+
+    viewer = security.current_viewer()
+    db = get_db()
+    mark_read(db, int(viewer["id"]), ann_id)
+
+    # 回到来源页；没有 referer 时退到用户中心
+    back = request.form.get("next") or request.referrer or "/u"
+    return redirect(back)

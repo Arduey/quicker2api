@@ -33,6 +33,30 @@
       {% block subheading %}{% endblock %}
     </div>
     <div class="content{% block content_class %}{% endblock %}">
+      {#- 公告横幅：只在有未读公告时出现，一次一条。
+          「知道了」是表单 POST 而不是 JS：没有 JS 也能关，
+          而且带 CSRF，第三方页面没法替用户点掉。 -#}
+      {% if current_announcement %}
+      <div class="announce{{ ' important' if current_announcement.is_important }}">
+        <div class="announce-main">
+          <div class="announce-head">
+            <span class="announce-tag">{{ current_announcement.level_label }}公告</span>
+            <span class="announce-title">{{ current_announcement.title }}</span>
+            <span class="announce-time">{{ current_announcement.created_at | ago }}</span>
+            {% if current_announcement.unread_total > 1 %}
+            <span class="announce-more">还有 {{ current_announcement.unread_total - 1 }} 条</span>
+            {% endif %}
+          </div>
+          <div class="announce-body">{{ current_announcement.body }}</div>
+        </div>
+        <form method="post" action="/u/announcement/{{ current_announcement.id }}/read"
+              class="announce-close">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button class="btn sm" type="submit">知道了</button>
+        </form>
+      </div>
+      {% endif %}
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
           <div class="alert {{ 'ok' if category == 'success' else category }}">
