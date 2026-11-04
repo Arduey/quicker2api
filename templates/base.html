@@ -33,30 +33,6 @@
       {% block subheading %}{% endblock %}
     </div>
     <div class="content{% block content_class %}{% endblock %}">
-      {#- 公告横幅：只在有未读公告时出现，一次一条。
-          「知道了」是表单 POST 而不是 JS：没有 JS 也能关，
-          而且带 CSRF，第三方页面没法替用户点掉。 -#}
-      {% if current_announcement %}
-      <div class="announce{{ ' important' if current_announcement.is_important }}">
-        <div class="announce-main">
-          <div class="announce-head">
-            <span class="announce-tag">{{ current_announcement.level_label }}公告</span>
-            <span class="announce-title">{{ current_announcement.title }}</span>
-            <span class="announce-time">{{ current_announcement.created_at | ago }}</span>
-            {% if current_announcement.unread_total > 1 %}
-            <span class="announce-more">还有 {{ current_announcement.unread_total - 1 }} 条</span>
-            {% endif %}
-          </div>
-          <div class="announce-body">{{ current_announcement.body }}</div>
-        </div>
-        <form method="post" action="/u/announcement/{{ current_announcement.id }}/read"
-              class="announce-close">
-          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-          <input type="hidden" name="next" value="{{ request.full_path }}">
-          <button class="btn sm" type="submit">知道了</button>
-        </form>
-      </div>
-      {% endif %}
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
           <div class="alert {{ 'ok' if category == 'success' else category }}">
@@ -71,5 +47,36 @@
 </div>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% block scripts %}{% endblock %}
+
+{#- 公告弹窗：放在 .shell 之外，才能真正覆盖整个视口（含侧栏与吸顶栏）。
+    只在有未读公告时渲染，一次一条。
+
+    「知道了」走表单 POST 而不是 JS：没有 JS 也能关，且带 CSRF，
+    第三方页面没法替用户点掉。遮罩本身也能点关，走同一套提交。 -#}
+{% if current_announcement %}
+<div class="modal-mask announce-modal" id="announceModal">
+  <div class="modal-box announce-box{{ ' important' if current_announcement.is_important }}"
+       role="dialog" aria-modal="true"
+       aria-labelledby="announceTitle">
+    <div class="announce-head">
+      <span class="announce-tag">{{ current_announcement.level_label }}公告</span>
+      <span class="announce-time">{{ current_announcement.created_at | ago }}</span>
+      {% if current_announcement.unread_total > 1 %}
+      <span class="announce-more">还有 {{ current_announcement.unread_total - 1 }} 条</span>
+      {% endif %}
+    </div>
+    <h3 id="announceTitle">{{ current_announcement.title }}</h3>
+    <div class="announce-body">{{ current_announcement.body }}</div>
+    <form method="post" action="/u/announcement/{{ current_announcement.id }}/read"
+          class="announce-form" id="announceForm">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ request.full_path }}">
+      <div class="btn-row end">
+        <button class="btn primary" type="submit">知道了</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 </body>
 </html>

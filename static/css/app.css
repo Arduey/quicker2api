@@ -983,29 +983,24 @@ td.nowrap, th.nowrap { white-space: nowrap; }
 }
 .alert .close:hover { opacity: 1; }
 
-/* ═══════════ 公告横幅 ═══════════ */
-/* 出现在内容区顶部，只在有未读公告时渲染。
-   重要公告靠更重的左边线和加粗标题区分，不用彩色警示条——
+/* ═══════════ 公告弹窗 ═══════════ */
+/* 复用 .modal-mask / .modal-box 的遮罩与卡片基础，这里只覆盖差异部分。
+   只在有未读公告时渲染，一次一条。
+
+   重要公告靠更重的左边线和墨色标签区分，不用彩色警示条——
    黑白体系里颜色扛不住「重要程度」这层语义。 */
-.announce {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+.announce-box {
+  /* 比默认 modal 宽一些：公告正文常有几行说明 */
+  max-width: 480px;
   border-left: 3px solid var(--border-strong);
-  border-radius: var(--radius-sm);
 }
-.announce.important { border-left-color: var(--ink); }
-.announce-main { flex: 1; min-width: 0; }
+.announce-box.important { border-left-color: var(--ink); }
 .announce-head {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 .announce-tag {
   flex: 0 0 auto;
@@ -1017,15 +1012,9 @@ td.nowrap, th.nowrap { white-space: nowrap; }
   color: var(--ink-2);
   font-weight: 500;
 }
-.announce.important .announce-tag {
+.announce-box.important .announce-tag {
   background: var(--brand);
   color: #fff;
-}
-.announce-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  min-width: 0;
 }
 .announce-time { font-size: 12px; color: var(--ink-3); }
 .announce-more {
@@ -1034,16 +1023,19 @@ td.nowrap, th.nowrap { white-space: nowrap; }
   padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
+  margin-left: auto;
 }
-/* 正文保留换行，纯文字 */
+/* 正文保留换行，纯文字。长公告限高滚动，不让它撑出屏幕 */
 .announce-body {
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.75;
   color: var(--ink-2);
   white-space: pre-wrap;
   word-break: break-word;
+  max-height: min(48vh, 360px);
+  overflow-y: auto;
 }
-.announce-close { margin: 0; flex: 0 0 auto; }
+.announce-form { margin-top: 20px; }
 
 /* 后台列表里的公告标题单元格 */
 .announce-cell-title {
@@ -1052,8 +1044,8 @@ td.nowrap, th.nowrap { white-space: nowrap; }
 }
 
 @media (max-width: 620px) {
-  .announce { flex-direction: column; gap: 12px; }
-  .announce-close { align-self: flex-end; }
+  .announce-box { max-width: none; }
+  .announce-body { max-height: 40vh; }
 }
 
 /* ═══════════ 杂项 ═══════════ */

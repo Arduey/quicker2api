@@ -147,6 +147,28 @@
     }
   }
 
+  /* ── 公告弹窗 ──
+     点遮罩或按 Esc 也能关。两者都走表单提交而不是直接隐藏元素：
+     关闭动作要记录「已读」，否则下次刷新又弹出来。
+     没有 JS 时按钮本身就能提交，功能不依赖这段脚本。 */
+  const announceModal = document.getElementById("announceModal");
+  const announceForm = document.getElementById("announceForm");
+  if (announceModal && announceForm) {
+    announceModal.addEventListener("click", function (ev) {
+      // 只有点在遮罩本身（不是弹窗内部）才关闭
+      if (ev.target !== announceModal) return;
+      announceForm.submit();
+    });
+
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") announceForm.submit();
+    });
+
+    // 打开时把焦点移到「知道了」，键盘用户可直接回车关闭
+    const btn = announceForm.querySelector('button[type="submit"]');
+    if (btn) setTimeout(function () { btn.focus(); }, 60);
+  }
+
   /* ── 密码可见切换：自动给每个密码框内嵌小眼睛 ── */
   const EYE_OPEN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   const EYE_OFF = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
