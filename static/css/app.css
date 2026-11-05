@@ -1773,6 +1773,24 @@ mark {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* 卡片上的分类标签：一个接口可能属于多个分类，逐个列出。
+   用小号描边胶囊而不是实底——分类是描述性信息，
+   不该和「N 积分/次」这种实底徽章抢注意力。 */
+.api-card-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.api-card-cat {
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
 .api-card-stats {
   /* 三等分占满整行：用 grid 而不是 flex，
      flex 下每项宽度由内容决定（"731 ms" 比 "7" 宽），三列宽窄不一。 */

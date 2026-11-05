@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS apis (
   maintenance_note VARCHAR(200) NOT NULL DEFAULT '',
   response_example MEDIUMTEXT,
   category VARCHAR(32) NOT NULL DEFAULT '',
+  categories VARCHAR(1024) NOT NULL DEFAULT '',
   created_at INT NOT NULL DEFAULT 0,
   updated_at INT NOT NULL DEFAULT 0,
   PRIMARY KEY (id),

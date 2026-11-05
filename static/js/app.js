@@ -420,7 +420,10 @@
     cards.forEach(function (card) {
       card._name = card.getAttribute("data-name") || "";
       card._desc = card.getAttribute("data-desc") || "";
-      card._cat = card.getAttribute("data-cat") || "";
+      // data-cat 是逗号分隔的多个分类。空串要拆成空数组，
+      // 否则 ''.split(',') 会得到 ['']，把「未分类」当成一个名叫空串的分类。
+      const rawCat = card.getAttribute("data-cat") || "";
+      card._cats = rawCat ? rawCat.split(",").filter(Boolean) : [];
       card._nameEl = card.querySelector(".js-name");
       card._descEl = card.querySelector(".js-desc");
     });
@@ -457,12 +460,26 @@
       const hit = {};
 
       cards.forEach(function (card) {
-        const okCat = !activeCat || card._cat === wantCat;
+        // 多分类：卡片可能属于多个分类，命中任一个即算匹配。
+        // 「未分类」用空数组表示（wantCat 为空串），要单独判断，
+        // 否则 includes('') 永远为 false，未分类的卡片就选不出来。
+        const okCat = !activeCat
+          || (wantCat === "" ? card._cats.length === 0 : card._cats.indexOf(wantCat) >= 0);
         let okKw = true;
         if (kw) {
           const hay = (card._name + "\n" + card._desc).toLowerCase();
           okKw = hay.indexOf(kw.toLowerCase()) >= 0;
-          if (okKw) hit[card._cat] = (hit[card._cat] || 0) + 1;
+          if (okKw) {
+            // 一张卡属于多个分类时，每个分类下都要计一次命中，
+            // 与后端 _category_counts 的口径保持一致。
+            if (!card._cats.length) {
+              hit[""] = (hit[""] || 0) + 1;
+            } else {
+              card._cats.forEach(function (name) {
+                hit[name] = (hit[name] || 0) + 1;
+              });
+            }
+          }
         }
         const visible = okCat && okKw;
         card.hidden = !visible;

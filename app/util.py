@@ -374,6 +374,43 @@ def api_categories() -> list[str]:
     return list(DEFAULT_CATEGORIES)
 
 
+# ── 多分类：存储用逗号分隔，匹配用 FIND_IN_SET ──
+# 分类名里出现逗号会让拆分产生歧义，所以保存分类时就要剥掉。
+# 这里不引入 JSON：一列纯文本更好排查，也能直接用 FIND_IN_SET 在 SQL 里筛。
+CATEGORY_SEP = ","
+
+
+def clean_category(name: str) -> str:
+    """把单个分类名清理成可安全存进逗号分隔列表的形式。"""
+    return str(name or "").replace(CATEGORY_SEP, "").strip()[:32]
+
+
+def parse_categories(value) -> list[str]:
+    """把 'a,b,c' 解析成去空去重的分类名列表。
+
+    也接受已经是列表的入参（表单 getlist 的结果），便于调用方少写转换。
+    """
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        raw_items = value
+    else:
+        raw_items = str(value).split(CATEGORY_SEP)
+    out, seen = [], set()
+    for item in raw_items:
+        name = clean_category(item)
+        if name and name not in seen:
+            seen.add(name)
+            out.append(name)
+    return out
+
+
+def join_categories(value) -> str:
+    """把多分类序列化成存储用的逗号分隔字符串（已去空去重）。"""
+    return CATEGORY_SEP.join(parse_categories(value))
+
+
+
 def slug_problem(slug: str) -> str:
     """检查调用标识（slug）是否合规，返回错误文案（空 = 合规）。
 

@@ -12,7 +12,7 @@ from ..db import get_db
 from ..util import (build_trend, client_ip, csrf_valid,
                     delta_percent, fmt_cost_ms, json_err, json_ok,
                     nickname_problem, nickname_taken, normalize_nickname,
-                    now_ts, text, to_int)
+                    now_ts, parse_categories, text, to_int)
 
 bp = Blueprint("portal", __name__)
 
@@ -122,7 +122,9 @@ def _visible_apis(db, keyword: str = "", category: str = "") -> list[dict]:
     args: list = [quicker.STATUS_ONLINE, quicker.STATUS_MAINTENANCE]
 
     if category:
-        where.append("a.category = %s")
+        # 多分类存在 categories 里（逗号分隔），用 FIND_IN_SET 精确匹配单个名称。
+        # 不用 LIKE '%x%' —— 「消息」会误命中「消息推送」。
+        where.append("FIND_IN_SET(%s, a.categories)")
         args.append(category)
 
     if keyword:
@@ -134,7 +136,7 @@ def _visible_apis(db, keyword: str = "", category: str = "") -> list[dict]:
     rows = db.query(
         "SELECT a.id, a.slug, a.name, a.description, a.cost_points, a.fields_json, "
         "a.call_count, a.success_count, a.status, a.maintenance_note, a.created_at, "
-        "a.category, "
+        "a.category, a.categories, "
         "AVG(CASE WHEN l.is_success = 1 THEN l.time_cost_ms END) AS avg_ms "
         "FROM apis a LEFT JOIN api_logs l ON l.api_id = a.id "
         "WHERE " + " AND ".join(where) + " "
@@ -148,6 +150,9 @@ def _visible_apis(db, keyword: str = "", category: str = "") -> list[dict]:
             row["fields"] = json.loads(row["fields_json"] or "[]")
         except ValueError:
             row["fields"] = []
+        # 多分类解析成列表供模板遍历；同时给一个逗号串方便 data-cat 属性
+        row["category_list"] = parse_categories(row.get("categories") or "")
+        row["category"] = (row["category_list"][0] if row["category_list"] else "")
         total = int(row.get("call_count") or 0)
         ok_count = int(row.get("success_count") or 0)
         row["success_rate"] = round(ok_count * 100.0 / total, 1) if total else None
@@ -166,12 +171,16 @@ def _visible_apis(db, keyword: str = "", category: str = "") -> list[dict]:
 
 # ═════════════════════ API 列表 & 调试 ═════════════════════
 def _category_counts(db, keyword: str = "") -> tuple[list[dict], int]:
-    """统计每个分类下的可见接口数，返回 (分类列表, 总数)。
+    """统计每个分类下的可见接口数，返回 (分类列表, 接口总数)。
+
+    一个接口可以属于多个分类，所以要在每个分类下各计一次。
+    这也意味着「各分类计数之和」会大于接口总数——两个数各有用处，
+    导航上的总数必须用后者，否则显示的数字会比实际的接口多。
 
     只返回「真的有接口」的分类——平台设置里预设但没挂接口的不显示，
     否则侧边目录会出现一堆点了就空白的入口。
 
-    未归类的接口（category 为空串）统一算作「未分类」，name 用空串表示，
+    未归类的接口统一算作「未分类」，name 用空串表示，
     由模板决定显示成什么文字。
     """
     where = ["a.status IN (%s, %s)"]
@@ -181,14 +190,26 @@ def _category_counts(db, keyword: str = "") -> tuple[list[dict], int]:
         where.append("(a.name LIKE %s OR a.description LIKE %s)")
         args.extend([like, like])
 
+    # 不在 SQL 里拆逗号：MySQL 没有开箱即用的 split，
+    # 取出 categories 在 Python 里拆更直白，也不会因版本差异出问题。
     rows = db.query(
-        "SELECT a.category AS name, COUNT(*) AS c FROM apis a "
-        "WHERE " + " AND ".join(where) + " "
-        "GROUP BY a.category ORDER BY c DESC, a.category ASC",
+        "SELECT a.categories FROM apis a WHERE " + " AND ".join(where),
         tuple(args),
     )
-    counts = [{"name": r["name"] or "", "count": int(r["c"])} for r in rows]
-    total = sum(item["count"] for item in counts)
+
+    counter: dict[str, int] = {}
+    total = 0
+    for row in rows:
+        total += 1
+        names = parse_categories(row.get("categories") or "")
+        if not names:
+            counter[""] = counter.get("", 0) + 1
+        for name in names:
+            counter[name] = counter.get(name, 0) + 1
+
+    counts = [{"name": name, "count": count} for name, count in counter.items()]
+    # 接口多的分类排前面；数量相同时按名称，保证顺序稳定不跳动
+    counts.sort(key=lambda item: (-item["count"], item["name"]))
     return counts, total
 
 

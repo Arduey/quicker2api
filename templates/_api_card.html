@@ -16,13 +16,14 @@
     避免五角星压住「平均耗时」。游客没有星星，统计区正常铺满。 -#}
 {#- data-* 是给前端无刷新筛选用的：JS 直接读这几个原始值做匹配与标红，
     不必回服务器取数据。
+    data-cat 是**逗号分隔的多个分类**，前端用 indexOf 判断是否命中某个分类。
     hidden 只用于「无 JS 降级」：服务端按 URL 的 q/category 先把不匹配的
     卡片藏起来；有 JS 时由 app.js 重新计算并覆盖。 -#}
 <div class="api-card-wrap{{ ' has-fav' if viewer }}"
      data-api-id="{{ api.id }}"
      data-name="{{ api.name }}"
      data-desc="{{ api.description or '' }}"
-     data-cat="{{ api.category or '' }}"{{ ' hidden' if hidden }}>
+     data-cat="{{ (api.category_list or []) | join(',') }}"{{ ' hidden' if hidden }}>
   <a class="api-card {{ 'is-maint' if api.in_maintenance }}" href="/u/apis/{{ api.slug }}">
     <div class="api-card-top">
       <span class="api-card-name">
@@ -39,6 +40,13 @@
 
     {% if api.description %}
     <p class="api-card-desc js-desc">{{ api.description | highlight(keyword) }}</p>
+    {% endif %}
+
+    {#- 分类标签：可能不止一个，逐个列出。没有分类时不占行。 -#}
+    {% if api.category_list %}
+    <div class="api-card-cats">
+      {% for name in api.category_list %}<span class="api-card-cat">{{ name }}</span>{% endfor %}
+    </div>
     {% endif %}
 
     {% if api.in_maintenance %}

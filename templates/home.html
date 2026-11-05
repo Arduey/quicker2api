@@ -53,9 +53,11 @@
       {#- hidden 只为「无 JS 降级」：按 URL 里的 category/q 先把不匹配的藏起来。
           有 JS 时 app.js 会重新计算并覆盖，所以看到的结果一致。 -#}
       {%- set kw = (keyword or '') | lower -%}
-      {#- 未分类在目录里用哨兵 __none__，这里要还原成空串再比较 -#}
+      {#- 未分类在目录里用哨兵 __none__，这里要还原成空串再比较。
+          多分类：卡片属于任一所选分类即算命中，与 app.js 的逻辑保持一致。 -#}
       {%- set want_cat = '' if category == '__none__' else category -%}
-      {%- set miss_cat = category and (api.category or '') != want_cat -%}
+      {%- set cats = api.category_list or [] -%}
+      {%- set miss_cat = category and (want_cat not in cats if want_cat else not cats) -%}
       {%- set miss_kw = kw and (kw not in ((api.name or '') | lower)) and (kw not in ((api.description or '') | lower)) -%}
       {{ api_card(api, viewer, favorites, keyword, hidden=(miss_cat or miss_kw)) }}
       {% endfor %}

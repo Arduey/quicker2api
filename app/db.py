@@ -339,6 +339,22 @@ def migrate_admin_into_users(target: Database | None = None) -> list[str]:
                    "NOT NULL DEFAULT '' AFTER response_example")
         notes.append("已给 apis 表加上 category 字段")
 
+    # 7b. apis.categories（多分类，逗号分隔）
+    #     一个接口常常同时属于「消息推送」和「自动化」，单值不够用。
+    #     保留旧的 category 列不删：老数据、老链接仍可读，
+    #     新逻辑一律以 categories 为准，category 只作为它的第一个值同步写入。
+    if table_exists("apis") and not has_column("apis", "categories"):
+        db.execute("ALTER TABLE apis ADD COLUMN categories VARCHAR(1024) "
+                   "NOT NULL DEFAULT '' AFTER category")
+        notes.append("已给 apis 表加上 categories 字段")
+        # 把旧的单分类搬进多分类字段，否则升级后所有接口都会掉成「未分类」
+        if has_column("apis", "category"):
+            moved = db.execute(
+                "UPDATE apis SET categories = category "
+                "WHERE categories = '' AND category <> ''")
+            if moved:
+                notes.append("已把 %d 个接口的原分类迁入多分类字段" % moved)
+
     # 8. 「我有话说」升级：分类 / 置顶 / 已完成 / 查看数 / 点赞数
     if table_exists("topics"):
         topic_cols = [

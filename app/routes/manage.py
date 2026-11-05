@@ -9,8 +9,9 @@ from flask import (Blueprint, flash, g, jsonify, redirect, render_template,
 
 from .. import config, mailer, quicker, security
 from ..db import get_db
-from ..util import (api_categories, csrf_valid, fmt_ts, json_err, json_ok,
-                    normalize_slug, now_ts, setting_get, setting_set,
+from ..util import (api_categories, clean_category, csrf_valid, fmt_ts,
+                    join_categories, json_err, json_ok, normalize_slug,
+                    now_ts, parse_categories, setting_get, setting_set,
                     slug_problem, text, to_int)
 
 bp = Blueprint("manage", __name__, url_prefix="/admin")
@@ -127,7 +128,9 @@ def settings():
             raw = (request.form.get("categories") or "").replace("\r\n", "\n")
             names, seen = [], set()
             for line in raw.split("\n"):
-                name = text(line, 32)
+                # clean_category 会剥掉逗号：分类名里出现逗号会让
+                # 多分类的逗号分隔存储产生歧义，拆出来的名字就不对了。
+                name = clean_category(line)
                 if name and name not in seen:
                     seen.add(name)
                     names.append(name)
@@ -263,17 +266,27 @@ def api_list():
 
 
 def _api_form_context(api: dict | None, errors: list[str], form_fields: list[dict]):
+    # 已选分类要拆成列表给模板做多选回显；旧数据只有 category 时也能兜住。
+    picked = parse_categories((api or {}).get("categories") or "")
+    if not picked:
+        picked = parse_categories((api or {}).get("category") or "")
     return dict(
         api=api, errors=errors, form_fields=form_fields,
         shown_fields=form_fields or [],
         max_wait=quicker.MAX_WAIT_LIMIT,
         status_choices=quicker.STATUS_CHOICES,
         categories=api_categories(),
+        picked_categories=picked,
     )
 
 
 def _read_api_form(form) -> tuple[dict, list[dict], list[str]]:
     errors: list[str] = []
+    # 多分类：表单里的 name="categories" 可以有多项（getlist），
+    # 也兼容单个逗号分隔的字符串，两种提交方式都能正确处理。
+    picked = form.getlist("categories") if hasattr(form, "getlist") else []
+    if not picked:
+        picked = parse_categories(form.get("categories") or "")
     data = {
         "name": text(form.get("name"), 100),
         "slug": normalize_slug(form.get("slug") or ""),
@@ -285,8 +298,11 @@ def _read_api_form(form) -> tuple[dict, list[dict], list[str]]:
         "cost_points": to_int(form.get("cost_points"), 0, 0, 1000000),
         "status": quicker.normalize_status(form.get("status", quicker.STATUS_ONLINE)),
         "maintenance_note": text(form.get("maintenance_note"), 200),
-        "category": text(form.get("category"), 32),
+        "categories": join_categories(picked),
     }
+    # 旧的单值字段跟着多分类的第一个走：老数据、老链接、老 SQL 仍能读到值，
+    # 不必为了兼容再散落一堆判断。
+    data["category"] = (parse_categories(data["categories"]) or [""])[0]
     if not data["name"]:
         errors.append("API 名称必填")
     # 调用标识必须非空且唯一；格式问题统一由 slug_problem 判定，
@@ -335,7 +351,7 @@ def api_new():
     api = {
         "name": "", "slug": "", "description": "", "action": "",
         "wait_flag": 1, "max_wait_ms": quicker.MAX_WAIT_LIMIT, "txt_flag": 0,
-        "cost_points": 0, "status": 1, "category": "",
+        "cost_points": 0, "status": 1, "category": "", "categories": "",
     }
 
     if request.method == "POST":
@@ -347,12 +363,12 @@ def api_new():
             api_id = db.insert(
                 "INSERT INTO apis (slug, name, description, action, wait_flag, max_wait_ms, "
                 "txt_flag, cost_points, fields_json, status, maintenance_note, category, "
-                "created_at, updated_at) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "categories, created_at, updated_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (api["slug"], api["name"], api["description"], api["action"], api["wait_flag"],
                  api["max_wait_ms"], api["txt_flag"], api["cost_points"],
                  json.dumps(fields, ensure_ascii=False), api["status"],
-                 api["maintenance_note"], api["category"],
+                 api["maintenance_note"], api["category"], api["categories"],
                  now_ts(), now_ts()),
             )
             flash("API「%s」已创建" % api["name"], "success")
@@ -389,11 +405,11 @@ def api_edit(api_id: int):
             db.execute(
                 "UPDATE apis SET slug=%s, name=%s, description=%s, action=%s, wait_flag=%s, "
                 "max_wait_ms=%s, txt_flag=%s, cost_points=%s, fields_json=%s, status=%s, "
-                "maintenance_note=%s, category=%s, updated_at=%s WHERE id=%s",
+                "maintenance_note=%s, category=%s, categories=%s, updated_at=%s WHERE id=%s",
                 (draft["slug"], draft["name"], draft["description"], draft["action"],
                  draft["wait_flag"], draft["max_wait_ms"], draft["txt_flag"], draft["cost_points"],
                  json.dumps(fields, ensure_ascii=False), draft["status"],
-                 draft["maintenance_note"], draft["category"],
+                 draft["maintenance_note"], draft["category"], draft["categories"],
                  now_ts(), api_id),
             )
             flash("API「%s」已保存" % draft["name"], "success")

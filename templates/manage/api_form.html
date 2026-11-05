@@ -68,13 +68,19 @@
             </div>
             <div class="field">
               <label>分类</label>
-              <select name="category">
-                <option value="">未分类</option>
+              {#- 多选：一个接口常常同时属于「消息推送」和「自动化」。
+                  用复选框组而不是 multiple select——不用按住 Ctrl，
+                  也能一眼看到全部选项和已选中的项。 -#}
+              <div class="cat-picker">
                 {% for name in categories %}
-                <option value="{{ name }}" {{ 'selected' if (a.category or '') == name }}>{{ name }}</option>
+                <label class="cat-opt">
+                  <input type="checkbox" name="categories" value="{{ name }}"
+                         {{ 'checked' if name in picked_categories }}>
+                  <span class="cat-opt-face">{{ name }}</span>
+                </label>
                 {% endfor %}
-              </select>
-              <div class="help">在「平台设置 → 接口分类」里维护可选分类</div>
+              </div>
+              <div class="help">可多选；不选则归入「未分类」。可选分类在「平台设置 → 接口分类」里维护</div>
             </div>
           </div>
           <div class="field">
